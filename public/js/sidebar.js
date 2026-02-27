@@ -175,7 +175,7 @@ const Sidebar = (() => {
                     if (lastFile) {
                         openFileFromPath(lastFile);
                     } else {
-                        if (window.Editor) window.Editor.loadFile(null); // Clear editor if no last file
+                        if (typeof Editor !== 'undefined') Editor.loadFile(null); // Clear editor if no last file
                     }
 
                     renderTree(items);
@@ -990,15 +990,47 @@ const Sidebar = (() => {
     // =========================================================================
 
     async function updateFileContent(path, content) {
-        if (!path) return;
+        if (!path) {
+            console.warn('[Sidebar] updateFileContent called without path');
+            return false;
+        }
         try {
-            await fetch('/api/fs/file', {
+            // Try PUT first (update existing file)
+            const res = await fetch('/api/fs/file', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content }),
             });
+
+            if (res.ok) {
+                console.log(`[Sidebar] Saved: ${path}`);
+                return true;
+            }
+
+            // PUT returned an error — if 404 (file doesn't exist yet), fall back to POST (create)
+            if (res.status === 404) {
+                console.warn(`[Sidebar] File not found for PUT, creating via POST: ${path}`);
+                const createRes = await fetch('/api/fs/file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, content }),
+                });
+                if (createRes.ok) {
+                    console.log(`[Sidebar] Created & saved: ${path}`);
+                    return true;
+                }
+                const errData = await createRes.json().catch(() => ({}));
+                console.error(`[Sidebar] POST also failed for ${path}:`, errData);
+                return false;
+            }
+
+            // Some other error
+            const errData = await res.json().catch(() => ({}));
+            console.error(`[Sidebar] Save failed (${res.status}) for ${path}:`, errData);
+            return false;
         } catch (err) {
-            console.error('[Sidebar] Failed to save file content:', err);
+            console.error('[Sidebar] Network error saving file:', path, err);
+            return false;
         }
     }
 

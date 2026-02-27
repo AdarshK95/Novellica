@@ -3440,3 +3440,318 @@ input:checked+.slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
+
+/* ============================================================================
+   Diff Viewer — Editorial-grade comparison UI
+   ============================================================================ */
+.diff-viewer-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.diff-viewer-header {
+    padding: var(--space-md) var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.diff-toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.diff-toggle-btn {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    border: 1px solid var(--border-default);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.diff-toggle-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.diff-toggle-btn.active {
+    background: var(--accent-muted);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.diff-summary-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.diff-summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: auto;
+}
+
+.diff-pill {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.diff-pill-add {
+    background: rgba(74, 222, 128, 0.12);
+    color: #4ade80;
+}
+
+.diff-pill-del {
+    background: rgba(248, 113, 113, 0.12);
+    color: #f87171;
+}
+
+.diff-pill-mod {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+}
+
+.diff-pill-info {
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+}
+
+.diff-compare-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+}
+
+.diff-file-select {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    background: var(--bg-deep);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+}
+
+.diff-file-select:focus {
+    border-color: var(--accent);
+}
+
+.diff-compare-vs {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.diff-empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--space-2xl);
+    gap: var(--space-sm);
+}
+
+.diff-empty-icon {
+    font-size: 2.5rem;
+    opacity: 0.15;
+    margin-bottom: var(--space-md);
+}
+
+.diff-empty-state p {
+    font-size: 0.85rem;
+}
+
+.diff-empty-hint {
+    font-size: 0.75rem !important;
+    opacity: 0.6;
+}
+
+.diff-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md);
+}
+
+.diff-row {
+    display: flex;
+    gap: 1px;
+    position: relative;
+    border-radius: var(--radius-sm);
+    margin-bottom: 2px;
+    transition: opacity var(--duration-fast);
+}
+
+.diff-row.diff-accepted {
+    opacity: 0.4;
+}
+
+.diff-row.diff-rejected {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+
+.diff-cell {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    font-family: var(--font-sans);
+    word-wrap: break-word;
+    min-height: 28px;
+}
+
+.diff-equal {
+    color: var(--text-secondary);
+}
+
+.diff-empty-cell {
+    background: var(--bg-deep);
+    opacity: 0.3;
+}
+
+.diff-add-bg {
+    background: rgba(74, 222, 128, 0.06);
+    border-left: 2px solid rgba(74, 222, 128, 0.3);
+}
+
+.diff-del-bg {
+    background: rgba(248, 113, 113, 0.06);
+    border-left: 2px solid rgba(248, 113, 113, 0.3);
+}
+
+.diff-mod-bg {
+    background: rgba(251, 191, 36, 0.06);
+    border-left: 2px solid rgba(251, 191, 36, 0.3);
+}
+
+.diff-add-text {
+    color: #4ade80;
+}
+
+.diff-del-text {
+    color: #f87171;
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.diff-inline-line {
+    padding: 4px 10px;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    font-family: var(--font-sans);
+    word-wrap: break-word;
+}
+
+.diff-inline-add {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.diff-inline-del {
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
+    text-decoration: line-through;
+    padding: 1px 4px;
+    border-radius: 3px;
+    opacity: 0.8;
+}
+
+.diff-block-controls {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--duration-fast);
+    z-index: 5;
+}
+
+.diff-has-controls:hover .diff-block-controls {
+    opacity: 1;
+}
+
+.diff-ctrl-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: none;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+.diff-accept {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+}
+
+.diff-accept:hover {
+    background: rgba(74, 222, 128, 0.3);
+    transform: scale(1.1);
+}
+
+.diff-reject {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+}
+
+.diff-reject:hover {
+    background: rgba(248, 113, 113, 0.3);
+    transform: scale(1.1);
+}
+
+.diff-collapsed-block {
+    padding: 6px 12px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: center;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    margin: 4px 0;
+    transition: all var(--duration-fast);
+    letter-spacing: 0.03em;
+}
+
+.diff-collapsed-block:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.diff-collapsed-block.expanded {
+    background: var(--accent-muted);
+    color: var(--accent);
+}

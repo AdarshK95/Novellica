@@ -19,6 +19,7 @@ const App = (() => {
             ['Refinement', () => Refinement.init()],
             ['Chat', () => Chat.init()],
             ['PromptStudio', () => PromptStudio.init()],
+            ['DiffViewer', () => { if (typeof DiffViewer !== 'undefined') DiffViewer.init(); }],
             ['NotionSync', () => { if (typeof NotionSync !== 'undefined') NotionSync.init(); }],
         ];
 

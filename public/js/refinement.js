@@ -1,5 +1,9 @@
 /**
  * refinement.js — Refinement panel with persistent textarea editor
+ *
+ * Save strategy:
+ *   • 1 second after the user stops typing  (debounce)
+ *   • Every 2 minutes during continuous typing (max-wait)
  */
 
 const Refinement = (() => {
@@ -9,8 +13,14 @@ const Refinement = (() => {
     let _versionTitleEl = null;
     let _isStreaming = false;
     let _currentPath = null;
-    let _saveTimer = null;
-    let _autosaveInterval = 5000; // 5 seconds for refinement
+
+    // Save timers
+    let _debounceTimer = null;
+    let _maxWaitTimer = null;
+    let _dirty = false;
+
+    const DEBOUNCE_MS = 1000;           // 1 second after stop typing
+    const MAX_WAIT_MS = 2 * 60 * 1000;  // 2 minutes continuous typing cap
 
     function init() {
         _textarea = document.getElementById('refine-editor');
@@ -35,7 +45,7 @@ const Refinement = (() => {
 
         _textarea.addEventListener('input', () => {
             updateWordCount();
-            scheduleSave();
+            markDirty();
 
             // Show buttons if there is content
             const hasContent = _textarea.value.trim().length > 0;
@@ -45,12 +55,16 @@ const Refinement = (() => {
         });
         _textarea.addEventListener('keydown', onKeyDown);
 
+        // Save before page unload
+        window.addEventListener('beforeunload', () => {
+            if (_dirty) saveToFile(true);
+        });
+
         // Initial word count
         updateWordCount();
     }
 
     function onKeyDown(e) {
-        // Tab inserts spaces
         if (e.key === 'Tab') {
             e.preventDefault();
             const start = _textarea.selectionStart;
@@ -58,9 +72,48 @@ const Refinement = (() => {
             _textarea.value = _textarea.value.substring(0, start) + '    ' + _textarea.value.substring(end);
             _textarea.selectionStart = _textarea.selectionEnd = start + 4;
             updateWordCount();
-            scheduleSave();
+            markDirty();
         }
     }
+
+    // ─── Save Strategy ───────────────────────────────────────────────────────────
+
+    /**
+     * Called on every keystroke / input event.
+     * Sets up a 1-second debounce AND a 2-minute max-wait timer.
+     */
+    function markDirty() {
+        if (_isStreaming) return; // Don't schedule saves during AI streaming
+        _dirty = true;
+        setStatus('Unsaved', '');
+
+        // 1) Reset the debounce — fires 1s after the LAST keystroke
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => {
+            flushSave();
+        }, DEBOUNCE_MS);
+
+        // 2) Start max-wait timer if not already running
+        if (!_maxWaitTimer) {
+            _maxWaitTimer = setTimeout(() => {
+                flushSave();
+            }, MAX_WAIT_MS);
+        }
+    }
+
+    /**
+     * Actually persist to disk/server and reset all timers.
+     */
+    function flushSave() {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = null;
+        clearTimeout(_maxWaitTimer);
+        _maxWaitTimer = null;
+        _dirty = false;
+        saveToFile(true);
+    }
+
+    // ─── Streaming ───────────────────────────────────────────────────────────────
 
     function startStream() {
         _isStreaming = true;
@@ -87,7 +140,8 @@ const Refinement = (() => {
         _textarea.placeholder = 'AI refinement will appear here...';
 
         // Auto-save after streaming ends
-        saveToFile(true);
+        _dirty = true;
+        flushSave();
     }
 
     function showError(message) {
@@ -96,23 +150,7 @@ const Refinement = (() => {
         _textarea.value = `⚠ Error: ${message}`;
     }
 
-    function copyRefined() {
-        if (!_textarea.value.trim()) {
-            App.toast('Nothing to copy', 'error');
-            return;
-        }
-        navigator.clipboard.writeText(_textarea.value).then(() => {
-            App.toast('Refinement copied', 'success');
-        });
-    }
-
-    function scheduleSave() {
-        clearTimeout(_saveTimer);
-        _saveTimer = setTimeout(() => {
-            saveToFile(true);
-        }, _autosaveInterval);
-        setStatus('Unsaved', '');
-    }
+    // ─── File I/O ────────────────────────────────────────────────────────────────
 
     async function saveToFile(silent = false) {
         const text = _textarea.value.trim();
@@ -124,8 +162,7 @@ const Refinement = (() => {
         // Determine save path
         let targetPath = _currentPath;
 
-        // If no explicit path, try to derive from Draft editor
-        if (!targetPath && window.Editor) {
+        if (!targetPath && typeof Editor !== 'undefined') {
             const draftFile = Editor.getCurrentFile();
             if (draftFile) {
                 const parts = draftFile.path.split('/');
@@ -134,27 +171,48 @@ const Refinement = (() => {
             }
         }
 
-        // Fallback to default
         if (!targetPath) targetPath = 'Story-Refined/Untitled-Refined.md';
 
         try {
-            if (window.Sidebar) {
-                await Sidebar.saveFile(targetPath, text);
-                _currentPath = targetPath; // Persist the path for future autosaves
+            if (typeof Sidebar === 'undefined') {
+                console.error('[Refinement] Sidebar not available');
+                return;
+            }
 
-                // Update title if it's the first save
+            // Use updateFileContent (PUT with POST fallback) for robustness
+            const ok = await Sidebar.updateFileContent(targetPath, text);
+
+            if (ok) {
+                _currentPath = targetPath;
                 const filename = targetPath.split('/').pop();
                 if (_versionTitleEl.textContent === 'Refine Result' || _versionTitleEl.textContent === 'Refined: (unsaved)') {
                     _versionTitleEl.textContent = `Refined: ${filename}`;
                 }
-
                 setStatus('Saved', 'success');
                 if (!silent) App.toast(`Saved to ${targetPath}`, 'success');
+                if (typeof Logger !== 'undefined') Logger.log('info', `Refinement saved: ${filename}`);
+            } else {
+                setStatus('Save Failed', 'error');
+                if (!silent) App.toast('Failed to save refinement', 'error');
+                if (typeof Logger !== 'undefined') Logger.log('error', `Refinement save FAILED: ${targetPath}`);
             }
         } catch (e) {
             console.error('[Refinement] Save error:', e);
+            setStatus('Save Failed', 'error');
             if (!silent) App.toast('Failed to save refinement', 'error');
         }
+    }
+
+    // ─── Other Actions ───────────────────────────────────────────────────────────
+
+    function copyRefined() {
+        if (!_textarea.value.trim()) {
+            App.toast('Nothing to copy', 'error');
+            return;
+        }
+        navigator.clipboard.writeText(_textarea.value).then(() => {
+            App.toast('Refinement copied', 'success');
+        });
     }
 
     function applyToDraft() {
@@ -163,16 +221,20 @@ const Refinement = (() => {
             App.toast('Nothing to apply', 'error');
             return;
         }
-        if (window.Editor) {
+        if (typeof Editor !== 'undefined') {
             Editor.setContent(text);
             App.toast('Applied to draft session', 'success');
         }
     }
 
     function clear() {
+        // Flush pending save before clearing
+        if (_dirty) flushSave();
+
         _textarea.value = '';
         _isStreaming = false;
         _currentPath = null;
+        _dirty = false;
         updateWordCount();
         _versionTitleEl.textContent = 'Refine Result';
 
@@ -186,15 +248,17 @@ const Refinement = (() => {
     }
 
     async function loadRefined(sourcePath) {
-        // Construct the Story-Refined path
+        // Flush pending save before loading a new file
+        if (_dirty) flushSave();
+
         const parts = sourcePath.split('/');
         if (parts[0] !== 'Story-Refined') {
             parts.unshift('Story-Refined');
         }
         const targetPath = parts.join('/');
         _currentPath = targetPath;
+        _dirty = false;
 
-        // Update Header
         _versionTitleEl.textContent = `Refined: ${parts[parts.length - 1]}`;
 
         try {
@@ -213,7 +277,6 @@ const Refinement = (() => {
                     return;
                 }
             }
-            // If doesn't exist, clear it
             _textarea.value = '';
             updateWordCount();
             setStatus('Empty', '');
@@ -222,12 +285,22 @@ const Refinement = (() => {
         }
     }
 
+    // ─── Utilities ───────────────────────────────────────────────────────────────
+
     function updateWordCount() {
         if (!_wordCountEl || !_textarea) return;
         const text = _textarea.value.trim();
         const words = text ? text.split(/\s+/).length : 0;
         const chars = text.length;
         _wordCountEl.textContent = `${words} word${words !== 1 ? 's' : ''} · ${chars} chars`;
+    }
+
+    function setStatus(text, type) {
+        if (!_statusBadge) return;
+        _statusBadge.textContent = text;
+        _statusBadge.className = 'status-badge';
+        if (type) _statusBadge.classList.add(type);
+        _statusBadge.classList.remove('hidden');
     }
 
     function getRawText() { return _textarea.value; }

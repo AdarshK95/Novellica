@@ -451,6 +451,7 @@
             <!-- Tab Bar -->
             <div class="tab-bar">
                 <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+                <button class="tab-btn" data-tab="diff-viewer">⇔ Diff</button>
                 <button class="tab-btn" data-tab="prompt-studio">📝 Prompts</button>
                 <button class="tab-btn" data-tab="logs">📊 Logs</button>
                 <div style="flex:1"></div>
@@ -540,6 +541,49 @@
 
                 <!-- Diff Panel (below backup list) -->
                 <div id="ps-backup-diff" class="diff-panel hidden"></div>
+            </div>
+
+            <!-- Tab: Diff Viewer -->
+            <div id="tab-diff-viewer" class="tab-content">
+                <div class="diff-viewer-panel">
+                    <!-- Toggle Controls -->
+                    <div class="diff-viewer-header">
+                        <div class="diff-toggle-group">
+                            <button class="diff-toggle-btn" data-toggle="hideUnchanged" title="Hide Unchanged">Hide
+                                Unchanged</button>
+                            <button class="diff-toggle-btn" data-toggle="inlineMode" title="Inline Mode">Inline</button>
+                            <button class="diff-toggle-btn active" data-toggle="groupEdits"
+                                title="Group Edits">Group</button>
+                            <button class="diff-toggle-btn" data-toggle="ignoreFormatting"
+                                title="Ignore Formatting">Ignore Format</button>
+                            <button class="diff-toggle-btn" data-toggle="wordLevel"
+                                title="Word-Level Diff">Word-Level</button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Bar -->
+                    <div id="diff-summary-bar" class="diff-summary-bar" style="display: none;"></div>
+
+                    <!-- Compare Files Selector -->
+                    <div class="diff-compare-row">
+                        <select id="diff-left-file" class="diff-file-select"></select>
+                        <span class="diff-compare-vs">↔</span>
+                        <select id="diff-right-file" class="diff-file-select"></select>
+                        <button id="diff-compare-btn" class="btn btn-accent"
+                            style="font-size: 0.75rem; padding: 4px 12px;">Compare</button>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="diff-empty-state" class="diff-empty-state" style="display: flex;">
+                        <div class="diff-empty-icon">⇔</div>
+                        <p>No differences to display.</p>
+                        <p class="diff-empty-hint">Select two files above to compare, or refine a draft to see changes.
+                        </p>
+                    </div>
+
+                    <!-- Diff Body -->
+                    <div id="diff-body" class="diff-body" style="display: none;"></div>
+                </div>
             </div>
 
             <!-- Tab: Logs -->
@@ -1080,6 +1124,8 @@
     <script src="/js/chat.js"></script>
     <script src="/js/notion-sync.js"></script>
     <script src="/js/search.js"></script>
+    <script src="/js/diff-engine.js"></script>
+    <script src="/js/diff-viewer.js"></script>
     <script src="/js/app.js"></script>
 </body>
 

@@ -1,5 +1,9 @@
 /**
  * editor.js — Draft editor with auto-save and word count
+ *
+ * Save strategy:
+ *   • 1 second after the user stops typing  (debounce)
+ *   • Every 2 minutes during continuous typing (max-wait)
  */
 
 const Editor = (() => {
@@ -8,8 +12,14 @@ const Editor = (() => {
     let _wordCountEl = null;
     let _statusEl = null;
     let _currentFile = null;
-    let _saveTimer = null;
-    let _autosaveInterval = 10000; // ms
+
+    // Save timers
+    let _debounceTimer = null;
+    let _maxWaitTimer = null;
+    let _dirty = false;
+
+    const DEBOUNCE_MS = 1000;        // 1 second after stop typing
+    const MAX_WAIT_MS = 2 * 60 * 1000; // 2 minutes continuous typing cap
 
     function init() {
         _textarea = document.getElementById('draft-editor');
@@ -17,12 +27,9 @@ const Editor = (() => {
         _wordCountEl = document.getElementById('word-count');
         _fileNameEl = document.getElementById('editor-file-name');
 
-        _textarea.addEventListener('input', () => {
-            updateWordCount();
-            scheduleSave();
-        });
-        _fileNameEl.addEventListener('input', updateFileNameWidth);
+        _textarea.addEventListener('input', onInput);
         _textarea.addEventListener('keydown', onKeyDown);
+        _fileNameEl.addEventListener('input', updateFileNameWidth);
 
         // Draft editor action buttons
         const copyDraftBtn = document.getElementById('copy-draft-btn');
@@ -67,23 +74,106 @@ const Editor = (() => {
             _textarea.value = scratchpad;
         }
 
+        // Save before page unload
+        window.addEventListener('beforeunload', () => {
+            if (_dirty) saveToFile();
+        });
+
         updateWordCount();
     }
 
     function loadFile(file) {
+        // Flush any pending saves for the previous file
+        if (_dirty) saveToFile();
+
         _currentFile = file;
         if (file) {
             _textarea.value = file.content || '';
             _fileNameEl.value = file.name;
         } else {
-            // Revert to scratchpad
             _textarea.value = localStorage.getItem('storyforge_scratchpad') || '';
             _fileNameEl.value = 'Untitled';
         }
+        _dirty = false;
         updateFileNameWidth();
         updateWordCount();
         setStatus('Ready');
     }
+
+    function onInput() {
+        updateWordCount();
+        markDirty();
+    }
+
+    function onKeyDown(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = _textarea.selectionStart;
+            const end = _textarea.selectionEnd;
+            _textarea.value = _textarea.value.substring(0, start) + '    ' + _textarea.value.substring(end);
+            _textarea.selectionStart = _textarea.selectionEnd = start + 4;
+            onInput();
+        }
+    }
+
+    // ─── Save Strategy ───────────────────────────────────────────────────────────
+
+    /**
+     * Called on every keystroke / input event.
+     * Sets up a 1-second debounce AND a 2-minute max-wait timer.
+     */
+    function markDirty() {
+        _dirty = true;
+        setStatus('Unsaved');
+
+        // 1) Reset the debounce — fires 1s after the LAST keystroke
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => {
+            flushSave();
+        }, DEBOUNCE_MS);
+
+        // 2) Start max-wait timer if not already running
+        if (!_maxWaitTimer) {
+            _maxWaitTimer = setTimeout(() => {
+                flushSave();
+            }, MAX_WAIT_MS);
+        }
+    }
+
+    /**
+     * Actually persist to disk/server and reset all timers.
+     */
+    function flushSave() {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = null;
+        clearTimeout(_maxWaitTimer);
+        _maxWaitTimer = null;
+        _dirty = false;
+        saveToFile();
+    }
+
+    async function saveToFile() {
+        if (_currentFile) {
+            const ok = await Sidebar.updateFileContent(_currentFile.path, _textarea.value);
+            if (ok) {
+                setStatus('Saved');
+                if (typeof Logger !== 'undefined') Logger.log('info', `Draft auto-saved: ${_currentFile.name}`);
+            } else {
+                setStatus('Save Failed');
+                if (typeof Logger !== 'undefined') Logger.log('error', `Draft save FAILED: ${_currentFile.path}`);
+            }
+        } else {
+            localStorage.setItem('storyforge_scratchpad', _textarea.value);
+            setStatus('Saved Local');
+        }
+        setTimeout(() => setStatus('Ready'), 2000);
+    }
+
+    function forceSave() {
+        flushSave();
+    }
+
+    // ─── Rename ──────────────────────────────────────────────────────────────────
 
     async function onRenameComplete() {
         let newName = _fileNameEl.value.trim();
@@ -107,7 +197,7 @@ const Editor = (() => {
                     _fileNameEl.value = newName;
                     setStatus('Saved');
                     localStorage.removeItem('storyforge_scratchpad');
-                    if (window.Sidebar) window.Sidebar.refreshTree();
+                    if (typeof Sidebar !== 'undefined') Sidebar.refreshTree();
                     Logger.log('info', `Saved draft as ${newName}`);
                 }
             } catch (err) {
@@ -134,10 +224,10 @@ const Editor = (() => {
                     _currentFile.path = newPath;
                     _currentFile.name = newName;
                     _fileNameEl.value = newName;
-                    if (window.Sidebar) window.Sidebar.refreshTree();
+                    if (typeof Sidebar !== 'undefined') Sidebar.refreshTree();
                     Logger.log('info', `Renamed ${oldName} to ${newName}`);
                 } else {
-                    _fileNameEl.value = _currentFile.name; // revert on failure
+                    _fileNameEl.value = _currentFile.name;
                 }
             } catch (err) {
                 Logger.log('error', 'Failed to rename file');
@@ -146,30 +236,7 @@ const Editor = (() => {
         }
     }
 
-    function onInput() {
-        updateWordCount();
-        scheduleSave();
-    }
-
-    function onKeyDown(e) {
-        // Tab inserts spaces
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            const start = _textarea.selectionStart;
-            const end = _textarea.selectionEnd;
-            _textarea.value = _textarea.value.substring(0, start) + '    ' + _textarea.value.substring(end);
-            _textarea.selectionStart = _textarea.selectionEnd = start + 4;
-            onInput();
-        }
-    }
-
-    function scheduleSave() {
-        clearTimeout(_saveTimer);
-        _saveTimer = setTimeout(() => {
-            saveToFile();
-        }, _autosaveInterval);
-        setStatus('Unsaved');
-    }
+    // ─── Utilities ───────────────────────────────────────────────────────────────
 
     function copyDraftContent() {
         if (!_textarea.value.trim()) {
@@ -179,23 +246,6 @@ const Editor = (() => {
         navigator.clipboard.writeText(_textarea.value).then(() => {
             App.toast('Draft copied to clipboard', 'success');
         });
-    }
-
-    function saveToFile() {
-        if (_currentFile) {
-            Sidebar.updateFileContent(_currentFile.path, _textarea.value);
-            setStatus('Saved');
-        } else {
-            // Unsaved draft — store in local scratchpad
-            localStorage.setItem('storyforge_scratchpad', _textarea.value);
-            setStatus('Saved Local');
-        }
-        setTimeout(() => setStatus('Ready'), 1500);
-    }
-
-    function forceSave() {
-        clearTimeout(_saveTimer);
-        saveToFile();
     }
 
     function updateWordCount() {
@@ -208,17 +258,15 @@ const Editor = (() => {
     function setStatus(status) {
         _statusEl.textContent = status;
         _statusEl.className = 'status-badge';
-        if (status === 'Saved') _statusEl.classList.add('success');
+        if (status === 'Saved' || status === 'Saved Local') _statusEl.classList.add('success');
     }
 
-    function getContent() {
-        return _textarea.value;
-    }
+    function getContent() { return _textarea.value; }
 
     function setContent(text) {
         _textarea.value = text;
         updateWordCount();
-        scheduleSave();
+        markDirty();
     }
 
     function setFontSize(px) {
@@ -227,18 +275,14 @@ const Editor = (() => {
     }
 
     function setAutosaveInterval(seconds) {
-        _autosaveInterval = seconds * 1000;
+        // No-op kept for backwards compat — timing is now fixed at 1s debounce + 2min max
     }
 
-    function getCurrentFile() {
-        return _currentFile;
-    }
+    function getCurrentFile() { return _currentFile; }
 
     function updateFileNameWidth() {
         const val = _fileNameEl.value || _fileNameEl.placeholder || '';
         const len = Math.max(val.length, 1);
-        // Using 'ch' is a good approximation for wrapping to content length.
-        // The CSS max-width: 45% will handle the upper bound.
         _fileNameEl.style.width = `${len + 2}ch`;
         _fileNameEl.style.minWidth = '64px';
     }
@@ -248,17 +292,14 @@ const Editor = (() => {
         const text = _textarea.value;
         const lines = text.split('\n');
 
-        // Find cumulative char index for the start of the line
         let charIndex = 0;
         for (let i = 0; i < Math.min(lineNumber - 1, lines.length); i++) {
-            charIndex += lines[i].length + 1; // +1 for the newline
+            charIndex += lines[i].length + 1;
         }
 
-        // Find the match within the line
         let lineText = lines[lineNumber - 1] || '';
         let matchOffset = 0;
         if (searchText) {
-            // Case-insensitive search within the line
             matchOffset = lineText.toLowerCase().indexOf(searchText.toLowerCase());
             if (matchOffset === -1) matchOffset = 0;
         }
@@ -269,10 +310,8 @@ const Editor = (() => {
         _textarea.focus();
         _textarea.setSelectionRange(targetPos, targetPos + selectionLength);
 
-        // Scroll adjustment: use center-ish positioning
-        // Approximate calculation since textarea doesn't have child elements for lines
         const lineHeight = 1.8 * 16;
-        const scrollFactor = 0.5; // center
+        const scrollFactor = 0.5;
         const visibleLines = _textarea.clientHeight / lineHeight;
         _textarea.scrollTop = Math.max(0, (lineNumber - (visibleLines * scrollFactor)) * lineHeight);
     }

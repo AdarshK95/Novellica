@@ -204,7 +204,7 @@ const Chat = (() => {
                         body: JSON.stringify({ path: newPath, content: finalOutput })
                     });
                     if (res.ok) {
-                        if (window.Sidebar) window.Sidebar.refreshTree();
+                        if (typeof Sidebar !== 'undefined') Sidebar.refreshTree();
                         Logger.log('success', `Saved refinement to ${newPath}`);
                         App.toast(`Saved refinement to ${newPath}`, 'success');
                     }
@@ -335,7 +335,7 @@ const Chat = (() => {
         copyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             navigator.clipboard.writeText(msg.dataset.rawText).then(() => {
-                if (window.App) window.App.toast('Copied to clipboard', 'success');
+                if (typeof App !== 'undefined') App.toast('Copied to clipboard', 'success');
             });
         });
 
@@ -475,7 +475,7 @@ const Chat = (() => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: historyPath, content: JSON.stringify(_history, null, 2) })
             });
-            if (window.Sidebar) window.Sidebar.refreshTree();
+            if (typeof Sidebar !== 'undefined') Sidebar.refreshTree();
         } catch (err) { }
     }
 
