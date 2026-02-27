@@ -11,17 +11,10 @@ const GlobalSearch = (() => {
     function init() {
         _searchInput = document.getElementById('global-search-input');
         _searchBtn = document.getElementById('global-search-btn');
+        // Initialize state
         _resultsPanel = document.getElementById('search-results-panel');
 
-        const searchHeader = document.getElementById('search-header');
-        if (searchHeader) {
-            searchHeader.addEventListener('click', (e) => {
-                // If clicked on input/button, don't collapse
-                if (e.target.closest('#search-content')) return;
-                _searchCollapsed = !_searchCollapsed;
-                syncSearchView();
-            });
-        }
+        const clearBtn = document.getElementById('global-search-clear');
 
         if (_searchBtn) {
             _searchBtn.addEventListener('click', performSearch);
@@ -33,6 +26,23 @@ const GlobalSearch = (() => {
             });
             // Stop propagation to prevent sidebar from eating keys if it's listening globally
             _searchInput.addEventListener('keydown', e => e.stopPropagation());
+
+            _searchInput.addEventListener('input', () => {
+                if (clearBtn) {
+                    if (_searchInput.value.length > 0) clearBtn.classList.remove('hidden');
+                    else clearBtn.classList.add('hidden');
+                }
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                _searchInput.value = '';
+                clearBtn.classList.add('hidden');
+                _resultsPanel.innerHTML = '';
+                _resultsPanel.style.display = 'none';
+                _searchInput.focus();
+            });
         }
 
         // --- Search Results Height Resizer ---
@@ -82,12 +92,6 @@ const GlobalSearch = (() => {
         }
     }
 
-    function syncSearchView() {
-        const content = document.getElementById('search-content');
-        const chevron = document.getElementById('search-chevron');
-        if (content) content.style.display = _searchCollapsed ? 'none' : 'flex';
-        if (chevron) chevron.style.transform = _searchCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
-    }
 
     async function performSearch() {
         const query = _searchInput.value.trim();
@@ -98,7 +102,7 @@ const GlobalSearch = (() => {
 
         _searchBtn.disabled = true;
         _searchBtn.textContent = '...';
-        _resultsPanel.innerHTML = '<div style="padding:10px; color:var(--text-muted); font-size:0.8rem;">Searching...</div>';
+        _resultsPanel.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.8rem;"><span style="display:block; font-size:1.2rem; margin-bottom:8px; animation:spin 2s linear infinite;">◌</span>Analysing documents...</div>';
         _resultsPanel.style.display = 'block';
 
         try {
@@ -107,16 +111,16 @@ const GlobalSearch = (() => {
             renderResults(data, query);
         } catch (err) {
             console.error('[Search] Failed:', err);
-            _resultsPanel.innerHTML = '<div style="padding:10px; color:var(--error); font-size:0.8rem;">Search failed</div>';
+            _resultsPanel.innerHTML = '<div style="padding:20px; text-align:center; color:var(--error); font-size:0.8rem;">Search encountered an issue.</div>';
         } finally {
             _searchBtn.disabled = false;
-            _searchBtn.textContent = 'Search';
+            _searchBtn.textContent = '↵';
         }
     }
 
     function renderResults(results, query) {
         if (!results || results.length === 0) {
-            _resultsPanel.innerHTML = '<div style="padding:10px; color:var(--text-muted); font-size:0.8rem;">No matches found</div>';
+            _resultsPanel.innerHTML = '<div style="padding:15px; text-align:center; color:var(--text-muted); font-size:0.8rem; font-style:italic;">No matches found.</div>';
             return;
         }
 
@@ -124,22 +128,11 @@ const GlobalSearch = (() => {
         results.forEach(file => {
             const fileGroup = document.createElement('div');
             fileGroup.className = 'search-result-group';
-            fileGroup.style.marginBottom = '10px';
-            fileGroup.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-            fileGroup.style.paddingBottom = '6px';
 
             const fileHeader = document.createElement('div');
             fileHeader.className = 'search-result-file';
-            fileHeader.innerHTML = `📄 <strong>${file.name}</strong>`;
-            fileHeader.style.fontSize = '0.8rem';
-            fileHeader.style.color = 'var(--accent)';
-            fileHeader.style.cursor = 'pointer';
-            fileHeader.style.padding = '4px 6px';
-            fileHeader.style.borderRadius = '4px';
-            fileHeader.style.transition = 'background 0.2s';
-
-            fileHeader.addEventListener('mouseenter', () => fileHeader.style.background = 'rgba(240,160,80,0.1)');
-            fileHeader.addEventListener('mouseleave', () => fileHeader.style.background = 'transparent');
+            fileHeader.innerHTML = `<span>📄</span> ${file.name}`;
+            fileHeader.title = file.path;
 
             fileHeader.addEventListener('click', () => {
                 Sidebar.openFileFromPath(file.path);
@@ -149,15 +142,6 @@ const GlobalSearch = (() => {
             file.matches.forEach(match => {
                 const matchItem = document.createElement('div');
                 matchItem.className = 'search-result-match';
-                matchItem.style.fontSize = '0.72rem';
-                matchItem.style.padding = '4px 8px 4px 24px';
-                matchItem.style.color = 'var(--text-secondary)';
-                matchItem.style.cursor = 'pointer';
-                matchItem.style.whiteSpace = 'nowrap';
-                matchItem.style.overflow = 'hidden';
-                matchItem.style.textOverflow = 'ellipsis';
-                matchItem.style.borderRadius = '3px';
-                matchItem.style.transition = 'all 0.2s';
 
                 // Highlight matches in snippet
                 const snippet = match.text;
@@ -165,25 +149,15 @@ const GlobalSearch = (() => {
                 const safeSnippet = snippet.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
                 const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                const highlighted = safeSnippet.replace(regex, '<span style="color:var(--text-primary); background:rgba(240,160,80,0.3); border-radius:2px; font-weight:bold;">$1</span>');
+                const highlighted = safeSnippet.replace(regex, '<span class="search-highlight-tag">$1</span>');
 
-                matchItem.innerHTML = `<span style="opacity:0.4; font-family:var(--font-mono); margin-right:4px;">${match.line}:</span> ${highlighted}`;
+                matchItem.innerHTML = `<span class="search-match-line">${match.line}</span> ${highlighted}`;
 
                 matchItem.addEventListener('click', async () => {
                     await Sidebar.openFileFromPath(file.path);
-                    // Give editor a moment to load
                     setTimeout(() => {
                         Editor.jumpToLine(match.line, query);
                     }, 250);
-                });
-
-                matchItem.addEventListener('mouseenter', () => {
-                    matchItem.style.background = 'rgba(255,255,255,0.08)';
-                    matchItem.style.color = 'var(--text-primary)';
-                });
-                matchItem.addEventListener('mouseleave', () => {
-                    matchItem.style.background = 'transparent';
-                    matchItem.style.color = 'var(--text-secondary)';
                 });
 
                 fileGroup.appendChild(matchItem);

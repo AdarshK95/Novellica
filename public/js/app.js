@@ -7,6 +7,7 @@ const App = (() => {
         // Critical modules - needed for first paint / basic layout
         const critical = [
             ['Layout', () => Layout.init()],
+            ['Theme', () => Theme.init()],
             ['Editor', () => Editor.init()],
             ['Sidebar', () => Sidebar.init(onFileSelect)],
             ['ResponsiveMenu', () => ResponsiveMenu.init()],
@@ -980,6 +981,157 @@ const App = (() => {
     }
 
     return { init, toast };
+})();
+
+/**
+ * Theme — Manages visual themes and persistence
+ */
+const Theme = (() => {
+    const THEMES = [
+        'theme-dark', 'theme-light', 'theme-nord', 'theme-rose',
+        'theme-forest', 'theme-ocean', 'theme-obsidian', 'theme-custom'
+    ];
+    let _currentTheme = 'theme-dark';
+    let _overrides = {}; // Map of themeName -> { varName -> value }
+    let _styleTag = null;
+
+    function init() {
+        // Create style tag for dynamic overrides
+        _styleTag = document.createElement('style');
+        _styleTag.id = 'theme-overrides-style';
+        document.head.appendChild(_styleTag);
+
+        const savedTheme = localStorage.getItem('novellica-theme');
+        const savedOverrides = localStorage.getItem('novellica-theme-overrides');
+        const savedWriterMode = localStorage.getItem('novellica-writer-mode') === 'true';
+
+        if (savedOverrides) {
+            try { _overrides = JSON.parse(savedOverrides); } catch (e) { _overrides = {}; }
+        }
+
+        document.querySelectorAll('.theme-card').forEach(card => {
+            card.addEventListener('click', () => setTheme(card.dataset.theme));
+        });
+
+        const writerToggle = document.getElementById('settings-writer-mode');
+        if (writerToggle) {
+            writerToggle.checked = savedWriterMode;
+            writerToggle.addEventListener('change', (e) => setWriterMode(e.target.checked));
+        }
+
+        document.querySelectorAll('.theme-picker').forEach(picker => {
+            picker.addEventListener('input', (e) => {
+                setOverride(_currentTheme, e.target.dataset.var, e.target.value);
+                const label = picker.nextElementSibling;
+                if (label?.classList.contains('picker-val')) label.textContent = e.target.value.toUpperCase();
+            });
+        });
+
+        document.getElementById('reset-theme-overrides')?.addEventListener('click', () => {
+            if (confirm(`Reset all customizations for ${_currentTheme}?`)) {
+                delete _overrides[_currentTheme];
+                saveOverrides();
+                applyAllStyles();
+                updateDesignerUI();
+            }
+        });
+
+        document.getElementById('export-theme-btn')?.addEventListener('click', exportTheme);
+        document.getElementById('import-theme-btn')?.addEventListener('click', () => document.getElementById('theme-import-input').click());
+        document.getElementById('theme-import-input')?.addEventListener('change', importTheme);
+
+        setWriterMode(savedWriterMode);
+        setTheme(savedTheme && THEMES.includes(savedTheme) ? savedTheme : 'theme-dark');
+    }
+
+    function setTheme(theme) {
+        document.body.classList.remove(...THEMES);
+        document.body.classList.add(theme);
+        _currentTheme = theme;
+        localStorage.setItem('novellica-theme', theme);
+        document.querySelectorAll('.theme-card').forEach(card => card.classList.toggle('active', card.dataset.theme === theme));
+        applyAllStyles();
+        updateDesignerUI();
+        document.getElementById('theme-editor-card')?.classList.remove('hidden');
+        if (typeof Logger !== 'undefined') Logger.log('info', `Theme: ${theme}`);
+    }
+
+    function setWriterMode(active) {
+        document.body.classList.toggle('writer-mode-active', active);
+        localStorage.setItem('novellica-writer-mode', active);
+    }
+
+    function setOverride(theme, varName, value) {
+        if (!_overrides[theme]) _overrides[theme] = {};
+        _overrides[theme][varName] = value;
+        saveOverrides();
+        applyAllStyles();
+    }
+
+    function saveOverrides() {
+        localStorage.setItem('novellica-theme-overrides', JSON.stringify(_overrides));
+    }
+
+    function applyAllStyles() {
+        let css = '';
+        for (const [theme, vars] of Object.entries(_overrides)) {
+            const selector = theme === 'theme-dark' ? ':root, .theme-dark' : `.${theme}`;
+            css += `${selector} {\n`;
+            for (const [v, val] of Object.entries(vars)) css += `  ${v}: ${val} !important;\n`;
+            css += `}\n`;
+        }
+        _styleTag.textContent = css;
+        const customPreview = document.getElementById('custom-theme-preview');
+        if (customPreview && _overrides['theme-custom']) {
+            const o = _overrides['theme-custom'];
+            customPreview.style.background = o['--bg-deep'] || '#444';
+            customPreview.style.borderColor = o['--accent'] || '#fff';
+        }
+    }
+
+    function updateDesignerUI() {
+        document.querySelectorAll('.theme-picker').forEach(picker => {
+            const varName = picker.dataset.var;
+            const currentVal = getComputedStyle(document.body).getPropertyValue(varName).trim();
+            if (currentVal.startsWith('#')) {
+                picker.value = currentVal;
+            } else if (currentVal.startsWith('rgb')) {
+                const parts = currentVal.match(/\d+/g);
+                if (parts?.length >= 3) {
+                    picker.value = '#' + parts.slice(0, 3).map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                }
+            }
+            const label = picker.nextElementSibling;
+            if (label?.classList.contains('picker-val')) label.textContent = picker.value.toUpperCase();
+        });
+    }
+
+    function exportTheme() {
+        const data = { theme: _currentTheme, overrides: _overrides[_currentTheme] || {}, all: _overrides };
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+        a.download = `novellica-theme-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    }
+
+    async function importTheme(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const data = JSON.parse(await file.text());
+            if (data.all) _overrides = data.all;
+            else if (data.overrides) _overrides[data.theme || 'theme-custom'] = data.overrides;
+            saveOverrides();
+            applyAllStyles();
+            if (data.theme) setTheme(data.theme);
+            else updateDesignerUI();
+            if (typeof App !== 'undefined') App.toast('Theme imported', 'success');
+        } catch (err) {
+            if (typeof App !== 'undefined') App.toast('Import failed', 'error');
+        }
+    }
+
+    return { init, setTheme, setWriterMode };
 })();
 
 

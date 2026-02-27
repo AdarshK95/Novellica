@@ -174,30 +174,22 @@
                 </div>
             </div>
             <!-- ============ GLOBAL SEARCH ============ -->
-            <div class="sidebar-section search-sidebar-section" id="search-section"
-                style="flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;">
+            <div class="sidebar-section search-sidebar-section" id="search-section">
                 <!-- Draggable height resizer for search results -->
                 <div class="section-resizer" id="search-resizer" title="Drag to resize">
                     <div class="section-resizer-line"></div>
                     <button class="section-resizer-reset" id="search-reset" title="Reset height">↺</button>
                 </div>
-                <div class="section-header" id="search-header" style="cursor: pointer;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span id="search-chevron"
-                            style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); transition: transform 0.2s;">▾</span>
-                        <span>Global Search</span>
+
+                <div id="search-content" class="search-content-elegant" style="padding-top: 15px;">
+                    <div class="search-input-wrapper">
+                        <span class="search-icon-inline">🔍</span>
+                        <input id="global-search-input" type="text" placeholder="Search global knowledge..."
+                            autocomplete="off">
+                        <button id="global-search-clear" class="search-clear-btn hidden" title="Clear Search">✕</button>
+                        <button id="global-search-btn" class="search-action-btn" title="Run Search">↵</button>
                     </div>
-                </div>
-                <div id="search-content"
-                    style="padding: 0 var(--space-lg) 10px; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; gap: 6px;">
-                        <input id="global-search-input" type="text" placeholder="Search across all documents..."
-                            style="flex: 1; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-primary); padding: 5px 8px; border-radius: 4px; font-size: 0.8rem; outline: none;">
-                        <button id="global-search-btn" class="btn btn-secondary"
-                            style="padding: 2px 8px; font-size: 0.75rem;">Search</button>
-                    </div>
-                    <div id="search-results-panel"
-                        style="max-height: 250px; overflow-y: auto; display: none; background: transparent; border-radius: 4px; padding: 4px; margin-top: 4px;">
+                    <div id="search-results-panel" class="search-results-premium">
                         <!-- Results go here -->
                     </div>
                 </div>
@@ -593,6 +585,7 @@
             <div id="settings-sidebar"
                 style="width: 220px; border-right: 1px solid var(--border-light); background: var(--bg-app); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
                 <button class="settings-tab-btn active" data-tab="settings-tab-general">General</button>
+                <button class="settings-tab-btn" data-tab="settings-tab-appearance">Appearance</button>
                 <button class="settings-tab-btn" data-tab="settings-tab-layout">Layout & Presets</button>
                 <button class="settings-tab-btn" data-tab="settings-tab-integrations">Integrations</button>
                 <button class="settings-tab-btn" data-tab="settings-tab-data">Data & Backup</button>
@@ -600,6 +593,145 @@
             <!-- Settings Content -->
             <div id="settings-content-area"
                 style="flex: 1; padding: 32px; overflow-y: auto; background: var(--bg-base);">
+
+                <!-- Appearance Tab -->
+                <div id="settings-tab-appearance" class="settings-tab-content hidden">
+                    <h3>Appearance</h3>
+                    <p class="hint" style="margin-bottom: 24px; color: var(--text-secondary);">Select a color theme for
+                        your workspace.</p>
+
+                    <div class="theme-grid">
+                        <div class="theme-card active" data-theme="theme-dark">
+                            <div class="theme-preview" style="background: #0a0e17; border-color: #f0a050;"></div>
+                            <span>Midnight (Dark)</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-light">
+                            <div class="theme-preview" style="background: #ffffff; border-color: #cbd5e1;"></div>
+                            <span>Pristine (Light)</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-nord">
+                            <div class="theme-preview" style="background: #2e3440; border-color: #88c0d0;"></div>
+                            <span>Nordic Blue</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-rose">
+                            <div class="theme-preview" style="background: #261b1e; border-color: #f472b6;"></div>
+                            <span>Velvet Rose</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-forest">
+                            <div class="theme-preview" style="background: #0a1210; border-color: #4ade80;"></div>
+                            <span>Evergreen</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-ocean">
+                            <div class="theme-preview" style="background: #0a1425; border-color: #38bdf8;"></div>
+                            <span>Deep Ocean</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-obsidian">
+                            <div class="theme-preview" style="background: #000000; border-color: #ffffff;"></div>
+                            <span>Pure Obsidian</span>
+                        </div>
+                        <div class="theme-card" data-theme="theme-custom">
+                            <div class="theme-preview" id="custom-theme-preview"
+                                style="background: linear-gradient(135deg, #444, #888); border-color: #fff;"></div>
+                            <span>Custom Designer</span>
+                        </div>
+                    </div>
+
+                    <div id="theme-editor-card" class="settings-card hidden" style="margin-top: 32px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h4 style="margin: 0;">Theme Designer</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="export-theme-btn" class="icon-btn small" title="Export JSON">⤓</button>
+                                <button id="import-theme-btn" class="icon-btn small" title="Import JSON">⤒</button>
+                                <input type="file" id="theme-import-input" class="hidden" accept=".json">
+                            </div>
+                        </div>
+                        <p class="hint" style="margin-bottom: 24px;">Customize the active theme. Changes are saved
+                            automatically as overrides.</p>
+
+                        <div
+                            style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Background (Deep)</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--bg-deep"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Surface (Panels)</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--bg-surface"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Accent Color</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--accent"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Text Primary</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--text-primary"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Editor BG</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--editor-bg"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                            <div class="settings-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem; text-transform: uppercase;">Editor Text</label>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <input type="color" class="theme-picker" data-var="--editor-txt"
+                                        style="width: 40px; height: 32px; padding: 0; border: none; background: none; cursor: pointer;">
+                                    <span class="picker-val"
+                                        style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">#000000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border-light); display: flex; justify-content: space-between;">
+                            <button id="reset-theme-overrides" class="btn btn-secondary small"
+                                style="font-size: 0.8rem;">Reset to Preset Default</button>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); font-style: italic;">Overrides are
+                                applied per-theme.</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-card" style="margin-top: 32px;">
+                        <div class="settings-group"
+                            style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h4 style="margin: 0;">Writer Focus Mode</h4>
+                                <p class="hint"
+                                    style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.85rem;">
+                                    Overrides the editor background with a classic legal pad yellow for all themes.</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="settings-writer-mode">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- General Tab -->
                 <div id="settings-tab-general" class="settings-tab-content">
