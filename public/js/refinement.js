@@ -306,5 +306,12 @@ const Refinement = (() => {
     function getRawText() { return _textarea.value; }
     function isStreaming() { return _isStreaming; }
 
-    return { init, startStream, appendChunk, endStream, showError, clear, loadRefined, getRawText, isStreaming };
+    function setContent(text) {
+        if (!_textarea) return;
+        _textarea.value = text;
+        updateWordCount();
+        markDirty();
+    }
+
+    return { init, startStream, appendChunk, endStream, showError, clear, loadRefined, getRawText, isStreaming, setContent };
 })();

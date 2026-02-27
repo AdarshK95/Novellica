@@ -1,0 +1,83 @@
+# Diff Viewer — UI Consolidation & Persistence
+
+## 1. Session Persistence (localStorage)
+
+Save to `localStorage['novellica-diff-state']` on every state change:
+- Selected file paths (left/right)
+- Raw text (_original, _modified)
+- Decisions map
+- Undo/redo stacks
+- Scroll position
+- Toggle states
+
+On [init()](file:///c:/Novellica/public/js/sidebar.js#18-131), restore from localStorage if present and re-run comparison.
+
+**Files:** [diff-viewer.js](file:///c:/Novellica/public/js/diff-viewer.js)
+
+---
+
+## 2. Clear Button
+
+Add a **✕ Clear** button in the header toolbar that:
+- Calls [clear()](file:///c:/Novellica/public/js/refinement.js#172-187)
+- Removes the localStorage saved state
+- Resets file pickers
+
+**Files:** [index.html](file:///c:/Novellica/public/index.html), [diff-viewer.js](file:///c:/Novellica/public/js/diff-viewer.js)
+
+---
+
+## 3. Consolidate Toolbar into Single Row
+
+Remove the separate `diff-bulk-bar` div. Move bulk action buttons (◀ Keep All, ✦ Smart, Accept All ▶) into the existing `diff-toggle-group` row alongside undo/redo and toggles.
+
+**Files:** [index.html](file:///c:/Novellica/public/index.html), [styles.css](file:///c:/Novellica/public/css/styles.css) (remove `.diff-bulk-bar`)
+
+---
+
+## 4. Remove Redundant Summary Bar
+
+Remove `#diff-summary-bar` as a separate row. Move the stat pills (+N, −N, ~N, etc.) directly into the header toolbar row, rendered dynamically by JS.
+
+**Files:** [index.html](file:///c:/Novellica/public/index.html) (remove summary bar div), [diff-viewer.js](file:///c:/Novellica/public/js/diff-viewer.js) (render pills into header), [styles.css](file:///c:/Novellica/public/css/styles.css) (remove `.diff-summary-bar`)
+
+---
+
+## 5. Better Visibility — Line Numbers & Center Controls
+
+- `.diff-line-num`: increase `opacity` from `0.25` → `0.55`, use `color: var(--text-secondary)`
+- `.diff-ctrl-btn`: increase resting `opacity` from `0.35` → `0.65`, use brighter border
+
+**Files:** [styles.css](file:///c:/Novellica/public/css/styles.css)
+
+---
+
+## 6. Output Mode — Merge to Refinement vs Create New Document
+
+Add an output section below the file pickers:
+- **Radio/toggle**: "Merge to Refined Editor" (default) | "Save to New File"
+- When "Save to New File" is selected, show:
+  - Editable filename input (auto-populated from source file names)
+  - File auto-saves on each decision (like refinement does)
+  - Show the file path on the left side of the diff area
+
+The new file is created via `PUT /api/fs/file` (existing API).
+
+**Files:** [index.html](file:///c:/Novellica/public/index.html) (output mode UI), [diff-viewer.js](file:///c:/Novellica/public/js/diff-viewer.js) (save logic), [styles.css](file:///c:/Novellica/public/css/styles.css) (minor styling)
+
+---
+
+## Proposed New Header Layout
+
+```
+[Hide Unchanged] [Group] [Ignore Format] │ [↩] [↪] [3/7] │ [◀ Keep All] [✦ Smart] [Accept ▶] │ [+5 −2 ~3] │ [📖 Read] [✕ Clear]
+```
+
+Single row, horizontally scrollable if needed. No separate bars below.
+
+## Verification
+- Hard-refresh → close browser → reopen → diff restores exactly  
+- Clear button resets everything  
+- Bulk buttons and pills visible in single row  
+- Line numbers and ◀/▶ clearly visible  
+- "Save to New File" creates file and auto-saves on decisions

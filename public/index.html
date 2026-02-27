@@ -13,6 +13,7 @@
         rel="stylesheet">
     <link rel="icon" type="image/png" href="/story_forge_logo.png">
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/layoutEditor.css">
 </head>
 
 <body>
@@ -551,14 +552,28 @@
                         <div class="diff-toggle-group">
                             <button class="diff-toggle-btn" data-toggle="hideUnchanged" title="Hide Unchanged">Hide
                                 Unchanged</button>
-                            <button class="diff-toggle-btn" data-toggle="inlineMode" title="Inline Mode">Inline</button>
                             <button class="diff-toggle-btn active" data-toggle="groupEdits"
                                 title="Group Edits">Group</button>
                             <button class="diff-toggle-btn" data-toggle="ignoreFormatting"
                                 title="Ignore Formatting">Ignore Format</button>
-                            <button class="diff-toggle-btn" data-toggle="wordLevel"
-                                title="Word-Level Diff">Word-Level</button>
+                            <span style="opacity:0.15;margin:0 4px">│</span>
+                            <button class="diff-action-btn" id="diff-undo-btn" title="Undo (Ctrl+Z)" disabled>↩</button>
+                            <button class="diff-action-btn" id="diff-redo-btn" title="Redo (Ctrl+Y)" disabled>↪</button>
+                            <span class="diff-decided-count" id="diff-decided-count"></span>
+                            <span style="opacity:0.15;margin:0 4px">│</span>
+                            <button class="diff-toggle-btn" id="diff-reading-toggle" title="Reading Mode">📖
+                                Read</button>
                         </div>
+                    </div>
+
+                    <!-- Bulk Actions Bar -->
+                    <div class="diff-bulk-bar">
+                        <button class="diff-bulk-btn" id="diff-bulk-left" title="Keep all originals">◀ Keep All
+                            Originals</button>
+                        <button class="diff-bulk-btn diff-bulk-smart" id="diff-bulk-smart"
+                            title="Smart default: prefer richer version">✦ Smart Merge</button>
+                        <button class="diff-bulk-btn" id="diff-bulk-right" title="Accept all changes">Accept All
+                            ▶</button>
                     </div>
 
                     <!-- Summary Bar -->
@@ -566,9 +581,23 @@
 
                     <!-- Compare Files Selector -->
                     <div class="diff-compare-row">
-                        <select id="diff-left-file" class="diff-file-select"></select>
+                        <div class="diff-tree-picker" id="diff-left-picker">
+                            <button class="diff-picker-trigger" id="diff-left-trigger">— Select file —</button>
+                            <div class="diff-picker-dropdown hidden" id="diff-left-dropdown">
+                                <input type="text" class="diff-picker-search" placeholder="Search files..." />
+                                <div class="diff-picker-tree"></div>
+                            </div>
+                            <input type="hidden" id="diff-left-file" />
+                        </div>
                         <span class="diff-compare-vs">↔</span>
-                        <select id="diff-right-file" class="diff-file-select"></select>
+                        <div class="diff-tree-picker" id="diff-right-picker">
+                            <button class="diff-picker-trigger" id="diff-right-trigger">— Select file —</button>
+                            <div class="diff-picker-dropdown hidden" id="diff-right-dropdown">
+                                <input type="text" class="diff-picker-search" placeholder="Search files..." />
+                                <div class="diff-picker-tree"></div>
+                            </div>
+                            <input type="hidden" id="diff-right-file" />
+                        </div>
                         <button id="diff-compare-btn" class="btn btn-accent"
                             style="font-size: 0.75rem; padding: 4px 12px;">Compare</button>
                     </div>
@@ -581,8 +610,14 @@
                         </p>
                     </div>
 
-                    <!-- Diff Body -->
-                    <div id="diff-body" class="diff-body" style="display: none;"></div>
+                    <!-- Diff Content Area (body + minimap side by side) -->
+                    <div class="diff-content-area">
+                        <div id="diff-body" class="diff-body" style="display: none;"></div>
+                        <div id="diff-minimap" class="diff-minimap"></div>
+                    </div>
+
+                    <!-- Reading Mode Panel (hidden by default) -->
+                    <div id="diff-reading-panel" class="diff-reading-panel" style="display: none;"></div>
                 </div>
             </div>
 
@@ -831,6 +866,11 @@
 
                 <!-- Layout Tab -->
                 <div id="settings-tab-layout" class="settings-tab-content hidden">
+                    <button id="le-open-btn">Customize Layout</button>
+                    <p class="hint" style="margin-bottom:20px;color:var(--text-secondary);">
+                        Click any element on screen to adjust its size, spacing,
+                        typography and colors. Changes save automatically.
+                    </p>
                     <h3>Layout Presets</h3>
                     <p class="hint" style="margin-bottom: 24px;">Adjust columns in the main view, then save your
                         exact
@@ -1127,6 +1167,8 @@
     <script src="/js/diff-engine.js"></script>
     <script src="/js/diff-viewer.js"></script>
     <script src="/js/app.js"></script>
+    <script src="/js/layoutEditor.js"></script>
+
 </body>
 
 </html>

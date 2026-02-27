@@ -1,0 +1,503 @@
+/* ============================================================
+   LAYOUT EDITOR CSS — v3.0
+   Append to the very bottom of /public/css/styles.css
+   OR link as a separate /public/css/layoutEditor.css file
+   ============================================================ */
+
+/* ── Hover / selected outlines on right-hovered elements ── */
+.le-hover {
+    outline: 2px dashed #3b82f6 !important;
+    outline-offset: 2px !important;
+    cursor: context-menu !important;
+}
+
+.le-selected {
+    outline: 2px solid #f0a050 !important;
+    outline-offset: 2px !important;
+}
+
+/* ── Floating hover label ── */
+#le-hover-tag {
+    position: fixed;
+    z-index: 999999;
+    pointer-events: none;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.02em;
+}
+
+/* ── Active banner ── */
+#le-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99998;
+    height: 36px;
+    background: #0f172a;
+    border-bottom: 2px solid #3b82f6;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    font-size: 0.79rem;
+    color: #94a3b8;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+.le-banner-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b82f6;
+    box-shadow: 0 0 6px #3b82f6;
+    animation: le-pulse 1.8s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes le-pulse {
+
+    0%,
+    100% {
+        opacity: 1
+    }
+
+    50% {
+        opacity: 0.25
+    }
+}
+
+#le-banner>span:nth-child(2) {
+    flex: 1;
+}
+
+#le-exit-btn,
+#le-reset-all-btn {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+    font-size: 0.74rem;
+    transition: border-color 0.15s, color 0.15s;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+#le-exit-btn:hover {
+    border-color: #f87171;
+    color: #f87171;
+}
+
+#le-reset-all-btn:hover {
+    border-color: #fbbf24;
+    color: #fbbf24;
+}
+
+/* Push body content down when banner is active */
+body:has(#le-banner) {
+    padding-top: 36px;
+}
+
+/* ── Inspector Panel — floating draggable ── */
+#le-inspector {
+    position: fixed;
+    top: 36px;
+    right: 0;
+    width: 290px;
+    max-height: calc(100vh - 36px);
+    z-index: 99997;
+    background: var(--bg-surface, #111827);
+    border: 1px solid var(--border-light, #1e293b);
+    border-radius: 8px 0 0 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+    font-family: var(--font-main, 'Inter', sans-serif);
+    font-size: 0.79rem;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+#le-inspector.le-inspector-open {
+    transform: translateX(0);
+}
+
+/* When dragged to a floating position */
+#le-inspector.le-floating {
+    border-radius: 8px;
+    border: 1px solid var(--border-light, #1e293b);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    transition: none;
+    /* disable slide animation after first open */
+}
+
+/* ── Drag handle ── */
+.le-drag-handle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px 7px;
+    background: var(--bg-app, #0d1117);
+    border-bottom: 1px solid var(--border-light, #1e293b);
+    cursor: grab;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.le-drag-handle:active {
+    cursor: grabbing;
+}
+
+.le-drag-icon {
+    color: var(--text-muted, #64748b);
+    font-size: 14px;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.le-inspector-label {
+    font-weight: 600;
+    color: var(--text-primary, #f1f5f9);
+    font-size: 0.82rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.le-header-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ── Meta bar (dimensions / display / selector) ── */
+.le-inspector-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    background: var(--bg-deep, #070b12);
+    border-bottom: 1px solid var(--border-light, #1e293b);
+    font-size: 0.68rem;
+    color: var(--text-muted, #64748b);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    flex-shrink: 0;
+}
+
+.le-dot {
+    opacity: 0.3;
+}
+
+.le-selector-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+/* ── Scrollable body ── */
+.le-inspector-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.le-inspector-body::-webkit-scrollbar {
+    width: 3px;
+}
+
+.le-inspector-body::-webkit-scrollbar-thumb {
+    background: var(--border-light, #1e293b);
+    border-radius: 2px;
+}
+
+/* ── Section titles ── */
+.le-section-title {
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted, #64748b);
+    margin-top: 10px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--border-light, #1e293b);
+}
+
+/* ── Nudge grid ── */
+.le-nudge-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 4px;
+    align-items: center;
+    justify-items: center;
+    margin: 6px 0 2px;
+}
+
+.le-nudge-btn {
+    background: var(--bg-app, #0d1117);
+    border: 1px solid var(--border-light, #1e293b);
+    color: var(--text-secondary, #94a3b8);
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+    line-height: 1;
+}
+
+.le-nudge-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.le-nudge-btn:active {
+    background: rgba(59, 130, 246, 0.18);
+}
+
+.le-nudge-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.le-nudge-val {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 0.65rem;
+    color: var(--text-muted, #64748b);
+    background: var(--bg-deep, #070b12);
+    padding: 1px 5px;
+    border-radius: 3px;
+    min-width: 36px;
+    text-align: center;
+}
+
+.le-nudge-hint {
+    font-size: 0.62rem;
+    color: var(--text-muted, #64748b);
+    text-align: center;
+    margin-bottom: 4px;
+    opacity: 0.7;
+}
+
+/* ── Label + input rows ── */
+.le-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 24px;
+}
+
+.le-row label {
+    font-size: 0.74rem;
+    color: var(--text-secondary, #94a3b8);
+    flex-shrink: 0;
+    width: 76px;
+}
+
+/* ── Inputs ── */
+.le-input {
+    background: var(--bg-deep, #070b12);
+    border: 1px solid var(--border-light, #1e293b);
+    color: var(--text-main, #e2e8f0);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 0.74rem;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.12s;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    box-sizing: border-box;
+}
+
+.le-input:focus {
+    border-color: #3b82f6;
+}
+
+.le-input.le-small {
+    text-align: center;
+    padding: 3px 2px;
+    font-size: 0.7rem;
+}
+
+.le-input.le-tiny {
+    width: 52px;
+    flex-shrink: 0;
+}
+
+/* ── Select ── */
+.le-select {
+    background: var(--bg-deep, #070b12);
+    border: 1px solid var(--border-light, #1e293b);
+    color: var(--text-main, #e2e8f0);
+    border-radius: 4px;
+    padding: 3px 5px;
+    font-size: 0.74rem;
+    outline: none;
+    width: 100%;
+    cursor: pointer;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+/* ── 4-cell grid (padding/margin/offsets) ── */
+.le-four-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px;
+}
+
+.le-four-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.le-four-label {
+    font-size: 0.6rem;
+    color: var(--text-muted, #64748b);
+    font-weight: 700;
+}
+
+/* ── Slider row ── */
+.le-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.le-slider-row input[type="range"] {
+    flex: 1;
+    accent-color: #3b82f6;
+    height: 3px;
+    cursor: pointer;
+}
+
+/* ── Color row ── */
+.le-color-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+}
+
+.le-color {
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border-light, #1e293b);
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    background: none;
+}
+
+/* ── Buttons ── */
+.le-btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border-light, #1e293b);
+    color: var(--text-muted, #64748b);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 0.68rem;
+    transition: border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+.le-btn-ghost:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.le-btn-danger {
+    background: transparent;
+    border: 1px solid var(--border-light, #1e293b);
+    color: var(--text-muted, #64748b);
+    border-radius: 4px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 0.68rem;
+    transition: border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+.le-btn-danger:hover {
+    border-color: #fbbf24;
+    color: #fbbf24;
+}
+
+.le-btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted, #64748b);
+    cursor: pointer;
+    font-size: 0.82rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: color 0.12s;
+    line-height: 1;
+}
+
+.le-btn-close:hover {
+    color: #f87171;
+}
+
+/* ── Utility ── */
+.le-hidden {
+    display: none !important;
+}
+
+/* ── "Customize Layout" button in Settings ── */
+#le-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 9px 16px;
+    background: var(--bg-app, #0d1117);
+    border: 1px solid var(--border-light, #1e293b);
+    border-radius: 6px;
+    color: var(--text-primary, #f1f5f9);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.18s;
+    font-family: var(--font-main, 'Inter', sans-serif);
+}
+
+#le-open-btn:hover {
+    border-color: #3b82f6;
+}
+
+#le-open-btn::before {
+    content: '⊹';
+    color: #3b82f6;
+    font-size: 1rem;
+}

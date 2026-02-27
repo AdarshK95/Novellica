@@ -21,6 +21,7 @@ const App = (() => {
             ['PromptStudio', () => PromptStudio.init()],
             ['DiffViewer', () => { if (typeof DiffViewer !== 'undefined') DiffViewer.init(); }],
             ['NotionSync', () => { if (typeof NotionSync !== 'undefined') NotionSync.init(); }],
+            ['LayoutEditor', () => { if (typeof LayoutEditor !== 'undefined') LayoutEditor.init(); }],
         ];
 
         // Execute critical immediately
