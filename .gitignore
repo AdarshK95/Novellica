@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.venv/
+.venv_tts/
+.env
+.vscode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+.gemini_profile
+
+# Backup files
+Backup/
+Backup*/
+projects/
+api.txt
+keys.json

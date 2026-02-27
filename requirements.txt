@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+sse-starlette==2.1.0
+google-genai==1.1.0
+python-dotenv==1.0.1
+openai
+playwright
+notion-client
+notion2md
+kokoro>=0.9.4
+soundfile

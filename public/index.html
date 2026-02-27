@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novellica — AI Story Writing Studio</title>
+    <meta name="description" content="AI-powered story writing studio with Google Gemini integration">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/png" href="/story_forge_logo.png">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="modal-overlay hidden">
+        <div class="modal">
+            <button id="api-key-close" class="modal-close-btn icon-btn" title="Close">✕</button>
+            <div class="modal-icon">✦</div>
+            <h2>API Keys</h2>
+            <p class="modal-subtitle">Manage your Google Gemini API keys</p>
+            <div id="current-key-display" class="current-key-area hidden">
+                <label>Current Key</label>
+                <div class="key-row">
+                    <span id="masked-key" class="masked-key"></span>
+                    <button id="copy-key-btn" class="icon-btn small" title="Copy key">📋</button>
+                </div>
+            </div>
+            <!-- Stored Keys List -->
+            <div id="stored-keys-section" class="stored-keys-section hidden">
+                <label>Saved Keys <span class="hint">(click to switch active)</span></label>
+                <div id="stored-keys-list" class="stored-keys-list"></div>
+            </div>
+            <!-- Add New Key -->
+            <label class="add-key-label" style="margin-bottom: 8px; display: block;">Add Connection</label>
+            <div class="input-group" style="margin-bottom: 8px;">
+                <select id="api-provider-select"
+                    style="width: 100%; padding: 8px; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; outline: none; transition: border-color 0.2s;">
+                    <option value="google">Google Cloud (Gemini)</option>
+                    <option value="groq">Groq</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="custom">Custom (OpenAI Compatible)</option>
+                </select>
+            </div>
+
+            <div id="api-base-url-container" class="hidden" style="margin-bottom: 8px;">
+                <input type="text" id="api-base-url-input" placeholder="Base URL (e.g. https://api.openai.com/v1)"
+                    autocomplete="off"
+                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
+            </div>
+
+            <div class="input-group" style="margin-bottom: 8px;">
+                <input type="password" id="api-key-input" placeholder="API Key (AIza..., gsk_..., or sk-or-...)"
+                    autocomplete="off"
+                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
+            </div>
+
+            <div id="api-custom-models-container" class="hidden"
+                style="margin-bottom: 12px; border: 1px solid var(--border-light); padding: 8px; border-radius: 4px; background: var(--bg-surface);">
+                <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Custom
+                    Models (comma separated)</label>
+                <input type="text" id="api-custom-models-input"
+                    placeholder="e.g. llama-3.3-70b-versatile, openai/gpt-4o" autocomplete="off"
+                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 6px; border-radius: 4px; outline: none; font-size: 0.9rem;">
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Manually specify models to
+                    use.</div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button id="api-key-submit" class="btn btn-primary" style="width: 100%;">Save Connection</button>
+            </div>
+
+            <div id="stored-keys-section" class="hidden"
+                style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-light);">
+                <label
+                    style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 600;">Saved
+                    Connections</label>
+                <div id="stored-keys-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-light);">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="web-automation-toggle" style="width: 16px; height: 16px;">
+                    <span style="font-weight: 500;">Use Web Automation Mode (Playwright)</span>
+                </label>
+                <p class="modal-hint" style="margin-top: 4px;">
+                    Automates your browser tab to use Gemini Advanced without an API key.<br>
+                    Requires you to log in to Google on first use.
+                </p>
+                <button id="web-automation-auth" class="btn btn-secondary" style="margin-top: 8px;">
+                    Open Browser (Login)
+                </button>
+            </div>
+
+            <p class="modal-hint">Keys persist in .env + keys.json across sessions.</p>
+            <div id="api-key-error" class="modal-error hidden"></div>
+            <!-- Live Validation Logs -->
+            <div id="api-key-log" class="api-key-log hidden"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="app-container">
+
+        <!-- Column 1: Sidebar -->
+        <aside id="sidebar" class="panel sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img src="/story_forge_logo.png" alt="Novellica Logo" class="logo-img"
+                        style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;">
+                    <span class="logo-text">Novellica</span>
+                </div>
+                <button id="sidebar-toggle" class="icon-btn col-toggle" title="Toggle sidebar">«</button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Project Directory</span>
+                    <div class="section-header-actions">
+                        <button id="select-dir-btn" class="icon-btn small" title="Select Project Directory">📂</button>
+                        <button id="new-project-btn" class="icon-btn small" title="New project">+</button>
+                    </div>
+                </div>
+                <div id="project-list" class="tree-list"></div>
+                <!-- Draggable height resizer for project list -->
+                <div class="section-resizer" id="project-list-resizer" title="Drag to resize">
+                    <div class="section-resizer-line"></div>
+                    <button class="section-resizer-reset" id="project-list-reset" title="Reset height">↺</button>
+                </div>
+            </div>
+
+            <div class="sidebar-section workspace-sidebar-section"
+                style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <div class="section-header">
+                    <span>Workspace</span>
+                    <div class="section-header-actions">
+                        <button id="toggle-chat-json-btn" class="icon-btn small"
+                            title="Toggle hidden chat files">👁️‍🗨️</button>
+                        <button id="refresh-ws-btn" class="icon-btn small" title="Refresh Workspace">↺</button>
+                        <button id="new-ws-folder-btn" class="icon-btn small" title="New Folder">📁</button>
+                        <button id="new-ws-file-btn" class="icon-btn small" title="New File">+</button>
+                    </div>
+                </div>
+                <div class="workspace-split-view" style="flex: 1; border: none; padding-top: 5px;">
+                    <div class="workspace-pane" id="drafts-pane" style="padding: 0;">
+                        <div class="pane-header" style="padding-left: 8px; display: flex; align-items: center;">
+                            <button class="icon-btn pane-toggle" id="drafts-pane-toggle" title="Collapse Drafts"
+                                style="font-size: 0.85rem; padding: 2px 2px; line-height: 1; margin-right: 4px;">🖋️</button>
+                            <span class="pane-title">Drafts</span>
+                        </div>
+                        <div id="workspace-drafts" class="tree-list workspace-tree"></div>
+                    </div>
+                    <div class="workspace-divider-vertical" id="workspace-panes-resizer" title="Drag to resize">
+                        <div class="resizer-vertical-line"></div>
+                        <button class="section-resizer-reset" id="workspace-panes-reset" title="Reset width">↺</button>
+                    </div>
+                    <div class="workspace-pane" id="refined-pane" style="padding: 0;">
+                        <div class="pane-header" style="padding-left: 8px; display: flex; align-items: center;">
+                            <button class="icon-btn pane-toggle" id="refined-pane-toggle" title="Collapse Story-Refined"
+                                style="font-size: 0.85rem; padding: 2px 2px; line-height: 1; margin-right: 4px;">🪄</button>
+                            <span class="pane-title">Story-Refined</span>
+                        </div>
+                        <div id="workspace-refined" class="tree-list workspace-tree"></div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- ============ NOTION UNIFIED CONTAINER ============ -->
+            <div id="notion-unified-container"
+                style="display:none; flex-direction:column; flex-shrink:0; background:var(--bg-deep); height:280px; min-height:80px; max-height:80vh; position:relative;">
+
+                <!-- Height Drag Handle -->
+                <div id="notion-drag-handle" title="Drag to adjust height"
+                    style="height:8px; cursor:ns-resize; background:var(--bg-app); border-top:1px solid var(--border-light); border-bottom:1px solid var(--border-light); display:flex; justify-content:center; align-items:center; flex-shrink:0;">
+                    <div style="width:30px; height:2px; background:var(--text-muted); opacity:0.6; border-radius:1px;">
+                    </div>
+                </div>
+
+                <div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                    <!-- ============ NOTION BROWSER (collapsible, in sidebar) ============ -->
+                    <div id="notion-browser-panel"
+                        style="display:none; flex-direction:column; background: var(--bg-deep); flex:1; min-height:0;">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; padding: 6px 10px;">
+                            <span style="font-size:0.8rem; font-weight:600; color:var(--text-primary);">Notion
+                                Pages</span>
+                            <button id="notion-browser-close" class="icon-btn"
+                                style="font-size:0.7rem; padding:2px 6px;">✕</button>
+                        </div>
+                        <!-- Search bar -->
+                        <div style="padding: 0 8px 6px; flex-shrink:0;">
+                            <input id="notion-page-search" type="text" placeholder="Search pages…"
+                                style="width:100%; box-sizing:border-box; background:var(--bg-app); border:1px solid var(--border-light); color:var(--text-main); padding:5px 8px; border-radius:4px; font-size:0.8rem; outline:none;">
+                        </div>
+                        <!-- Page list with checkboxes -->
+                        <div id="notion-sidebar-page-list"
+                            style="overflow-y:auto; flex:1; padding: 0 8px 8px; display:flex; flex-direction:column; gap:3px;">
+                            <div style="text-align:center; color:var(--text-muted); padding:12px; font-size:0.8rem;">
+                                Loading…
+                            </div>
+                        </div>
+                        <!-- Multi-select action bar (shown only after a page is checked) -->
+                        <div id="notion-browser-actions"
+                            style="display:none; flex-direction:column; gap:4px; padding:6px 8px; border-top:1px solid var(--border-light); flex-shrink:0;">
+                            <div style="display:flex; gap:6px;">
+                                <button id="notion-multi-pull-btn" class="btn btn-secondary"
+                                    style="flex:1; font-size:0.75rem;">⬇️
+                                    Pull Selected</button>
+                                <button id="notion-multi-push-btn" class="btn btn-secondary"
+                                    style="flex:1; font-size:0.75rem;">⬆️
+                                    Push Selected</button>
+                            </div>
+                            <div id="notion-push-hint"
+                                style="display:none; font-size:0.7rem; color:var(--warning,#f59e0b); text-align:center; padding:2px 0;">
+                                ⚠ Select only 1 page to push
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ============ SYNC LOG STRIP ============ -->
+                    <div id="notion-sync-log-wrapper"
+                        style="display:none; flex-shrink:0; flex-direction:column; background:var(--bg-deep); border-top:1px solid var(--border-light);">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; padding: 4px 10px; background:var(--bg-app); border-bottom:1px solid var(--border-light);">
+                            <span style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">Sync Logs</span>
+                            <button id="notion-log-close" class="icon-btn"
+                                style="font-size:0.7rem; padding:2px 6px;">✕</button>
+                        </div>
+                        <div id="notion-sync-log"
+                            style="font-family:var(--font-mono); font-size:0.72rem; overflow-y:auto; padding:6px 10px; color:var(--text-muted); max-height: 150px;">
+                            <!-- populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- ============ NOTION PROGRESS BAR ============ -->
+                    <div id="notion-progress-container"
+                        style="display:none; flex-shrink:0; background:var(--bg-deep); border-top:1px solid var(--border-light); padding:8px 10px;">
+                        <div
+                            style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                            <div style="display:flex; align-items:center; flex:1; overflow:hidden;">
+                                <button id="notion-stop-pull-btn" title="Stop Download"
+                                    style="background:none; border:none; color:var(--error); cursor:pointer; font-size:0.8rem; padding:0 4px 0 0; display:flex; align-items:center; justify-content:center;">⛔</button>
+                                <span id="notion-progress-text"
+                                    style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Downloading…</span>
+                            </div>
+                            <span id="notion-progress-eta"
+                                style="font-size:0.7rem; color:var(--accent); font-family:var(--font-mono); margin-left:8px; white-space:nowrap;"></span>
+                        </div>
+                        <div
+                            style="width:100%; height:6px; background:var(--bg-app); border-radius:3px; overflow:hidden; position:relative;">
+                            <div id="notion-progress-bar"
+                                style="height:100%; width:0%; border-radius:3px; background:linear-gradient(90deg, var(--accent), #7c5cfc); transition:width 0.4s ease; position:relative; overflow:hidden;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- (TTS control bar moved to end of body) -->
+
+            <div class="sidebar-footer">
+                <!-- Notion Row -->
+                <div style="display: flex; align-items: center; gap: 2px; width: 100%; padding: 2px 0;">
+                    <button id="notion-config-btn" class="sidebar-action" style="flex: 1;" title="Notion Settings">
+                        <span class="action-icon"><img src="/Notion.png" alt="Notion"
+                                style="width:18px; height:18px; vertical-align:middle; border-radius:3px;"></span>
+                        <span>Notion</span>
+                    </button>
+                    <button id="notion-pull-btn" class="icon-btn" title="Pull from Notion"
+                        style="padding: 6px 8px; font-size: 1rem;">⬇️</button>
+                    <button id="notion-push-btn" class="icon-btn" title="Push to Notion"
+                        style="padding: 6px 8px; font-size: 1rem;">⬆️</button>
+                    <button id="notion-tree-expand-btn" class="icon-btn" title="Browse Notion Pages (toggle)"
+                        style="padding: 6px 8px; font-size: 1rem;">🗂️</button>
+                    <button id="notion-log-toggle-btn" class="icon-btn" title="Toggle Sync Logs"
+                        style="padding: 6px 8px; font-size: 1rem;">💻</button>
+                </div>
+
+                <!-- Dev Options (above compact bottom bar) -->
+                <div class="developer-options" style="position: relative; width: 100%;">
+                    <div id="dev-options-menu" class="dropdown-menu hidden"
+                        style="position: absolute; bottom: 100%; left: 0; width: 100%; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); margin-bottom: 4px; padding: 4px; display: flex; flex-direction: column; gap: 2px; z-index: 100;">
+                        <button id="backup-code-btn" class="sidebar-action" title="Backup Code"
+                            style="padding: 6px 10px; font-size: 0.8rem;">
+                            <span class="action-icon" style="font-size: 1rem;">💾</span>
+                            <span>Backup Code</span>
+                        </button>
+                        <button id="backup-browser-btn" class="sidebar-action" title="Backup Browser"
+                            style="padding: 6px 10px; font-size: 0.8rem;">
+                            <span class="action-icon" style="font-size: 1rem;">📂</span>
+                            <span>Backup Browser</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Compact horizontal icon-only bottom bar -->
+                <div
+                    style="display: flex; align-items: center; justify-content: space-around; width: 100%; border-top: 1px solid var(--border-light); padding-top: 4px; margin-top: 2px;">
+                    <button id="settings-btn" class="icon-btn" title="Settings"
+                        style="font-size:1.1rem; padding:6px 10px;">⚙️</button>
+                    <button id="change-key-btn" class="icon-btn" title="Change API Key"
+                        style="font-size:1.1rem; padding:6px 10px;">🔑</button>
+                    <button id="reset-layout-btn" class="icon-btn" title="Reset Layout"
+                        style="font-size:1.1rem; padding:6px 10px;">↺</button>
+                    <button id="dev-options-btn" class="icon-btn" title="Developer Options"
+                        style="font-size:1.1rem; padding:6px 10px;">🛠️</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Resizer 1 (Sidebar / Draft) -->
+        <div class="resizer" id="resizer-1" data-left="--sidebar-width" data-right="--editor-width">
+            <button class="resizer-reset" data-left-default="16%" data-right-default="32%"
+                title="Reset columns">↺</button>
+        </div>
+
+        <!-- Column 2: Draft Editor -->
+        <main id="editor-panel" class="panel editor-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <input type="text" id="editor-file-name" class="file-name-input" value="Untitled" autocomplete="off"
+                        spellcheck="false" title="Click to rename" />
+                </div>
+                <div class="panel-actions">
+                    <button id="generate-draft-btn" class="icon-btn" title="Generate Audio (Model call)">🎙️</button>
+                    <button id="read-draft-btn" class="icon-btn" title="Play or Mic (Play existing audio)">🔊</button>
+                    <button id="copy-draft-btn" class="icon-btn" title="Copy draft">📋</button>
+                    <button id="send-to-refine-btn" class="btn btn-accent" title="Send to refinement">
+                        Refine ⟶
+                    </button>
+                    <button id="editor-more-btn" class="icon-btn more-actions-btn" title="More actions">⋮</button>
+                    <button id="editor-toggle" class="icon-btn col-toggle" title="Toggle editor">«</button>
+                </div>
+            </div>
+            <!-- Formatting toolbar -->
+            <div class="format-toolbar" id="draft-format-toolbar">
+                <button class="fmt-btn" data-target="draft-editor" data-action="h1" title="Heading 1">H1</button>
+                <button class="fmt-btn" data-target="draft-editor" data-action="h2" title="Heading 2">H2</button>
+                <button class="fmt-btn" data-target="draft-editor" data-action="h3" title="Heading 3">H3</button>
+                <span class="fmt-sep"></span>
+                <button class="fmt-btn" data-target="draft-editor" data-action="normal" title="Normal text">¶</button>
+                <button class="fmt-btn" data-target="draft-editor" data-action="bullet" title="Bullet list">•
+                    List</button>
+                <span class="fmt-sep"></span>
+                <button class="fmt-btn" data-target="draft-editor" data-action="clear" title="Clear Formatting">✕
+                    Clear</button>
+            </div>
+            <div class="editor-body">
+                <textarea id="draft-editor"
+                    placeholder="Start writing your story here...&#10;&#10;Paste a draft, write from scratch, or select a file from the sidebar."
+                    spellcheck="true"></textarea>
+            </div>
+            <!-- Bottom status bar -->
+            <div class="editor-footer">
+                <span id="editor-status" class="status-badge">Ready</span>
+                <span id="word-count" class="word-count">0 words</span>
+            </div>
+        </main>
+
+        <!-- Resizer 2 (Draft / Refine) -->
+        <div class="resizer" id="resizer-2" data-left="--editor-width" data-right="--refine-width">
+            <button class="resizer-reset" data-left-default="32%" data-right-default="32%"
+                title="Reset columns">↺</button>
+        </div>
+
+        <!-- Column 3: Refinement Panel -->
+        <section id="refinement-panel" class="panel refinement-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <span class="logo-icon">✨</span>
+                    <span id="refine-version-title">Refine Result</span>
+                </div>
+                <div class="panel-actions">
+                    <button id="generate-refined-btn" class="icon-btn hidden"
+                        title="Generate Audio (Model call)">🎙️</button>
+                    <button id="read-refined-btn" class="icon-btn hidden"
+                        title="Play or Mic (Play existing audio)">🔊</button>
+                    <button id="save-refined-btn" class="icon-btn hidden"
+                        title="Save to Story Refined folder">💾</button>
+                    <button id="copy-refined-btn" class="icon-btn" title="Copy refined text">📋</button>
+                    <button id="apply-to-draft-btn" class="icon-btn" title="Apply to draft">⟵</button>
+                    <button id="clear-refinement-btn" class="icon-btn" title="Clear">✕</button>
+                    <button id="refine-more-btn" class="icon-btn more-actions-btn" title="More actions">⋮</button>
+                    <button id="refine-toggle" class="icon-btn col-toggle" title="Toggle refinement">«</button>
+                </div>
+            </div>
+            <!-- Formatting toolbar -->
+            <div class="format-toolbar" id="refine-format-toolbar">
+                <button class="fmt-btn" data-target="refine-editor" data-action="h1" title="Heading 1">H1</button>
+                <button class="fmt-btn" data-target="refine-editor" data-action="h2" title="Heading 2">H2</button>
+                <button class="fmt-btn" data-target="refine-editor" data-action="h3" title="Heading 3">H3</button>
+                <span class="fmt-sep"></span>
+                <button class="fmt-btn" data-target="refine-editor" data-action="normal" title="Normal text">¶</button>
+                <button class="fmt-btn" data-target="refine-editor" data-action="bullet" title="Bullet list">•
+                    List</button>
+                <span class="fmt-sep"></span>
+                <button class="fmt-btn" data-target="refine-editor" data-action="clear" title="Clear Formatting">✕
+                    Clear</button>
+            </div>
+            <div id="refinement-body" class="refinement-body">
+                <textarea id="refine-editor"
+                    placeholder="AI refinement will appear here. You can also edit directly, or paste content."
+                    spellcheck="true"></textarea>
+            </div>
+            <!-- Bottom status bar -->
+            <div class="editor-footer">
+                <span id="refine-status" class="status-badge hidden">Processing</span>
+                <span id="refine-word-count" class="word-count">0 words</span>
+            </div>
+        </section>
+
+        <!-- Resizer 3 (Refine / Prompt Studio) -->
+        <div class="resizer" id="resizer-3" data-left="--refine-width" data-right="--col4-width">
+            <button class="resizer-reset" data-left-default="32%" data-right-default="20%"
+                title="Reset columns">↺</button>
+        </div>
+
+        <!-- Column 4: Chat / Reference / Prompts -->
+        <aside id="col4-panel" class="panel col4-panel">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="chat">💬 Chat</button>
+                <button class="tab-btn" data-tab="prompt-studio">📝 Prompts</button>
+                <button class="tab-btn" data-tab="logs">📊 Logs</button>
+                <div style="flex:1"></div>
+                <button id="col4-toggle" class="icon-btn col-toggle" title="Toggle panel">»</button>
+            </div>
+
+            <!-- Tab: Chat -->
+            <div id="tab-chat" class="tab-content active">
+                <!-- Prompt Selector -->
+                <div class="prompt-selector">
+                    <label>Prompt Sequence <span class="prompt-count-label" id="prompt-count-label"></span></label>
+                    <div id="prompt-buttons" class="prompt-button-grid"></div>
+                    <p id="prompt-description" class="prompt-desc"></p>
+                </div>
+
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="chat-messages">
+                    <div class="empty-state small">
+                        <p>Select prompts in order, then send your draft. Prompts execute sequentially.</p>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-area">
+                    <div class="chat-input-row">
+                        <textarea id="chat-input" placeholder="Write a custom prompt or additional instructions..."
+                            rows="3"></textarea>
+                    </div>
+                    <div class="chat-actions">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="include-draft" checked>
+                            Include draft
+                        </label>
+                        <div class="chat-buttons">
+                            <select id="model-select" class="model-selector" title="Gemini model">
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash</option>
+                                <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro</option>
+                            </select>
+                            <button id="send-chat-btn" class="btn btn-primary">Run ⟶</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Prompt Studio -->
+            <div id="tab-prompt-studio" class="tab-content">
+                <div class="prompt-studio">
+                    <div class="prompt-studio-header">
+                        <select id="ps-prompt-select" class="prompt-studio-select">
+                            <option value="">— Select Prompt to Edit —</option>
+                        </select>
+                        <button id="new-prompt-btn" class="icon-btn" title="New prompt">+</button>
+                        <div style="position: relative;">
+                            <button id="ps-delete-btn" class="icon-btn danger" title="Delete prompt">✕</button>
+                            <div id="ps-delete-confirm-menu" class="overflow-menu hidden"
+                                style="position: absolute; right: 0; top: 100%; margin-top: 4px;">
+                                <button id="ps-delete-confirm-btn" class="btn danger" style="white-space: nowrap;">Are
+                                    you sure? Delete</button>
+                            </div>
+                        </div>
+                        <button id="ps-backup-btn" class="icon-btn" title="View backups">🕐</button>
+                    </div>
+                    <div id="ps-status" class="ps-status hidden">Saved</div>
+                    <div class="prompt-studio-fields">
+                        <div class="ps-field">
+                            <label>Name</label>
+                            <input type="text" id="ps-name" placeholder="Prompt name">
+                        </div>
+                        <div class="ps-field">
+                            <label>Description</label>
+                            <input type="text" id="ps-desc" placeholder="Short description">
+                        </div>
+                    </div>
+                    <textarea id="ps-body" class="prompt-studio-editor"
+                        placeholder="Select a prompt to edit..."></textarea>
+                </div>
+
+                <!-- Backup Panel (overlay) -->
+                <div id="ps-backup-panel" class="backup-panel hidden">
+                    <div class="backup-header">
+                        <span>Backup History</span>
+                        <button id="ps-backup-close" class="icon-btn small">✕</button>
+                    </div>
+                    <div id="ps-backup-list" class="backup-list"></div>
+                </div>
+
+                <!-- Diff Panel (below backup list) -->
+                <div id="ps-backup-diff" class="diff-panel hidden"></div>
+            </div>
+
+            <!-- Tab: Logs -->
+            <div id="tab-logs" class="tab-content">
+                <div class="logs-header">
+                    <span>Activity Log</span>
+                    <div class="logs-header-actions">
+                        <button id="clear-logs-btn" class="icon-btn small" title="Clear current session logs">✕</button>
+                    </div>
+                </div>
+                <div id="log-entries" class="log-entries"></div>
+            </div>
+
+
+            </section>
+    </div>
+
+    <!-- Context Menu (for sidebar) -->
+    <div id="context-menu" class="context-menu hidden">
+        <button data-action="rename">Rename</button>
+        <button data-action="duplicate">Duplicate</button>
+        <button data-action="new-folder">New Folder Inside</button>
+        <button data-action="move-to-root">Move to Root</button>
+        <button data-action="move-across">Move to Other Section</button>
+        <button data-action="open-dir">Open Directory</button>
+        <hr>
+        <button data-action="delete" class="danger">Delete</button>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Settings Page (Full Screen) -->
+    <div id="settings-page" class="hidden"
+        style="position: fixed; inset: 0; background: var(--bg-base); z-index: 9999; display: flex; flex-direction: column;">
+        <div id="settings-header"
+            style="padding: 16px 24px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface);">
+            <h2 style="margin: 0;">Settings</h2>
+            <button id="close-settings" class="icon-btn" style="font-size: 1.2rem;">✕</button>
+        </div>
+        <div style="display: flex; flex: 1; overflow: hidden;">
+            <!-- Settings Sidebar -->
+            <div id="settings-sidebar"
+                style="width: 220px; border-right: 1px solid var(--border-light); background: var(--bg-app); padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+                <button class="settings-tab-btn active" data-tab="settings-tab-general">General</button>
+                <button class="settings-tab-btn" data-tab="settings-tab-layout">Layout & Presets</button>
+                <button class="settings-tab-btn" data-tab="settings-tab-integrations">Integrations</button>
+                <button class="settings-tab-btn" data-tab="settings-tab-data">Data & Backup</button>
+            </div>
+            <!-- Settings Content -->
+            <div id="settings-content-area"
+                style="flex: 1; padding: 32px; overflow-y: auto; background: var(--bg-base);">
+
+                <!-- General Tab -->
+                <div id="settings-tab-general" class="settings-tab-content">
+                    <h3>General</h3>
+                    <div style="margin-top: 16px; max-width: 500px;">
+                        <div class="settings-group">
+                            <label>Default Model</label>
+                            <select id="settings-model" style="width:100%">
+                                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                <option value="gemini-2.5-flash-preview-05-20">Gemini 2.5 Flash</option>
+                                <option value="gemini-2.5-pro-preview-05-06">Gemini 2.5 Pro</option>
+                            </select>
+                        </div>
+                        <div class="settings-group">
+                            <label>Editor Font Size</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <input type="range" id="settings-font-size" min="13" max="22" value="16"
+                                    style="flex: 1;">
+                                <span id="font-size-label" style="min-width: 40px;">16px</span>
+                            </div>
+                        </div>
+                        <div class="settings-group">
+                            <label>Auto-save interval (seconds)</label>
+                            <input type="number" id="settings-autosave" min="5" max="120" value="10" style="width:100%">
+                        </div>
+                        <div class="settings-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="settings-inspector-mode" style="width: 16px; height: 16px;">
+                                <span>Enable Inspector Mode</span>
+                            </label>
+                            <p class="settings-hint">Hover over elements to see IDs, classes, and dimensions.</p>
+                        </div>
+
+                        <!-- TTS Settings -->
+                        <hr style="border: none; border-top: 1px solid var(--border-light); margin: 20px 0;">
+                        <h4 style="margin: 0 0 12px 0; color: var(--accent);">🔊 Text-to-Speech (Kokoro v1.0)</h4>
+                        <div class="settings-group">
+                            <label>TTS Voice</label>
+                            <select id="settings-tts-voice" style="width:100%">
+                                <option value="">Loading voices...</option>
+                            </select>
+                        </div>
+                        <div class="settings-group">
+                            <label>TTS Speed</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <input type="range" id="settings-tts-speed" min="0.5" max="2.0" step="0.1" value="1.0"
+                                    style="flex: 1;">
+                                <span id="tts-speed-label" style="min-width: 40px;">1.0×</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layout Tab -->
+                <div id="settings-tab-layout" class="settings-tab-content hidden">
+                    <h3>Layout Presets</h3>
+                    <p class="hint" style="margin-bottom: 24px;">Adjust columns in the main view, then save your
+                        exact
+                        workspace configuration here to quickly switch later.</p>
+
+                    <div style="max-width: 600px; display: flex; flex-direction: column; gap: 24px;">
+                        <!-- Current Dimensions -->
+                        <div
+                            style="padding: 16px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-surface);">
+                            <h4 style="margin-top: 0; margin-bottom: 12px; color: var(--accent);">Current Active
+                                Layout
+                            </h4>
+                            <div id="current-layout-stats"
+                                style="display: flex; flex-direction: row; gap: 12px; font-family: var(--font-mono); font-size: 0.95rem; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px;">
+                                <!-- Sidebar -->
+                                <div
+                                    style="background: var(--bg-app); padding: 12px; border-radius: 8px; flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
+                                    <label
+                                        style="display:block; font-size: 0.8em; font-weight: bold; font-family: var(--font-main);">Sidebar</label>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-sidebar" class="layout-edit-input"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-main); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted)">px</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-sidebar-pct" class="layout-edit-pct" step="0.1"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-muted); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75em; color: var(--text-muted)">%</span>
+                                    </div>
+                                    <input type="range" id="slider-sidebar" class="layout-slider" min="50" max="800"
+                                        style="width: 100%; cursor: pointer;">
+                                </div>
+                                <!-- Editor -->
+                                <div
+                                    style="background: var(--bg-app); padding: 12px; border-radius: 8px; flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
+                                    <label
+                                        style="display:block; font-size: 0.8em; font-weight: bold; font-family: var(--font-main);">Editor</label>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-editor" class="layout-edit-input"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-main); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted)">px</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-editor-pct" class="layout-edit-pct" step="0.1"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-muted); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75em; color: var(--text-muted)">%</span>
+                                    </div>
+                                    <input type="range" id="slider-editor" class="layout-slider" min="200" max="1200"
+                                        style="width: 100%; cursor: pointer;">
+                                </div>
+                                <!-- Refine -->
+                                <div
+                                    style="background: var(--bg-app); padding: 12px; border-radius: 8px; flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
+                                    <label
+                                        style="display:block; font-size: 0.8em; font-weight: bold; font-family: var(--font-main);">Refine</label>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-refine" class="layout-edit-input"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-main); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted)">px</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-refine-pct" class="layout-edit-pct" step="0.1"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-muted); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75em; color: var(--text-muted)">%</span>
+                                    </div>
+                                    <input type="range" id="slider-refine" class="layout-slider" min="200" max="1200"
+                                        style="width: 100%; cursor: pointer;">
+                                </div>
+                                <!-- Col 4 -->
+                                <div
+                                    style="background: var(--bg-app); padding: 12px; border-radius: 8px; flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 8px;">
+                                    <label
+                                        style="display:block; font-size: 0.8em; font-weight: bold; font-family: var(--font-main);">Col
+                                        4</label>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-col4" class="layout-edit-input"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-main); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted)">px</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <input type="number" id="edit-col4-pct" class="layout-edit-pct" step="0.1"
+                                            style="width: 55px; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-muted); padding: 2px 4px; border-radius: 4px;">
+                                        <span style="font-size: 0.75em; color: var(--text-muted)">%</span>
+                                    </div>
+                                    <input type="range" id="slider-col4" class="layout-slider" min="50" max="800"
+                                        style="width: 100%; cursor: pointer;">
+                                </div>
+                            </div>
+
+                            <div id="layout-validation-msg"
+                                style="color: var(--error); font-size: 0.85rem; margin-top: -10px; margin-bottom: 12px; display: none;">
+                                Total layout does not equal 100%. Please adjust.</div>
+
+                            <label
+                                style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px;">Save
+                                as new preset:</label>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <input type="text" id="new-preset-name"
+                                    placeholder="E.g., Focused Writing, Default, etc."
+                                    style="flex: 1; background: var(--bg-deep); border: 1px solid var(--border-light); color: var(--text-main); padding: 10px; border-radius: 4px; outline: none;">
+                                <button id="save-layout-preset-btn" class="btn btn-primary"
+                                    style="padding: 10px 16px;">Save Preset</button>
+                            </div>
+
+                            <hr style="border:none; border-top:1px solid var(--border-light); margin: 20px 0;">
+
+                            <div
+                                style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-bottom: 8px;">
+                                Default settings mathematically divide the screen into: <strong>16% / 32% / 32% /
+                                    20%</strong>
+                            </div>
+                            <button id="settings-reset-layout-btn" class="btn btn-secondary full-width"
+                                style="display: flex; justify-content: center; align-items: center; gap: 8px;">
+                                <span>↺</span> Restore Default Proportions
+                            </button>
+                        </div>
+
+                        <!-- Saved Presets List -->
+                        <div>
+                            <h4>Saved Presets</h4>
+                            <div id="layout-presets-list"
+                                style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 250px; overflow-y: auto;">
+                                <!-- Rendered via JS -->
+                                <div class="hint">No custom presets saved yet.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Integrations Tab -->
+                <div id="settings-tab-integrations" class="settings-tab-content hidden">
+                    <h3>Integrations</h3>
+                    <div style="margin-top: 16px; max-width: 500px;">
+                        <div class="settings-group">
+                            <label>Notion Integration Token</label>
+                            <input type="password" id="settings-notion-token" placeholder="secret_..."
+                                style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none; margin-bottom: 4px;">
+                            <span class="hint" style="display: block; font-size: 0.75rem;">Required for
+                                pulling/pushing
+                                pages to Notion.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data & Backup Tab -->
+                <div id="settings-tab-data" class="settings-tab-content hidden">
+                    <h3>Data & Backup</h3>
+                    <div style="margin-top: 16px; max-width: 500px; display: flex; flex-direction: column; gap: 12px;">
+                        <button id="export-all-btn" class="btn btn-secondary full-width">Export All Files
+                            (JSON)</button>
+                        <button id="import-all-btn" class="btn btn-secondary full-width">Import Files
+                            (JSON)</button>
+                        <input type="file" id="import-file-input" accept=".json" class="hidden">
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup Browser Modal -->
+    <div id="backup-browser-modal" class="modal-overlay hidden">
+        <div class="modal input-dialog">
+            <div class="modal-header">
+                <h2>Backup History</h2>
+                <button id="close-backup-browser" class="icon-btn">✕</button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="backup-list" class="backup-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="text-align: center; color: var(--text-muted); padding: 20px;">Loading backups...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notion Config Modal -->
+    <div id="notion-config-modal" class="modal-overlay hidden">
+        <div class="modal input-dialog" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2>🔗 Notion Integration</h2>
+                <button id="close-notion-config-btn" class="icon-btn">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label>Integration Token</label>
+                    <input type="password" id="notion-token-input" placeholder="secret_..."
+                        style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none; margin-bottom: 4px;">
+                    <span class="hint" style="display:block; font-size: 0.75rem;">Find this under <strong>Settings →
+                            Integrations</strong> in Notion. Share each page with your integration to make it
+                        accessible.</span>
+                </div>
+                <div id="notion-token-status"
+                    style="display: none; font-size: 0.82rem; padding: 8px; border-radius: 4px; margin-top: 8px;">
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button id="save-notion-token-btn" class="btn btn-primary" style="flex: 1;">Save Token</button>
+                    <button id="test-notion-token-btn" class="btn btn-secondary">Test Connection</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notion Page Selector Modal -->
+    <div id="notion-selector-modal" class="modal-overlay hidden">
+        <div class="modal input-dialog">
+            <div class="modal-header">
+                <h2>Select Notion Page</h2>
+                <button id="cancel-notion-select-btn" class="icon-btn">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Choose a page to Pull
+                    from
+                    or Push to.</p>
+                <div id="notion-page-list"
+                    style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+                    <!-- Filled via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notion Diff Modal -->
+    <div id="notion-diff-modal" class="modal-overlay hidden" style="z-index: 9999;">
+        <div class="modal"
+            style="width: 800px; max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column;">
+            <h3 style="margin-top: 0; color: var(--accent); margin-bottom: 4px;">Notion Sync Diff</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Review changes before
+                applying
+                the pull from Notion.</p>
+
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; flex-grow: 1; overflow: hidden;">
+                <div
+                    style="background: var(--bg-deep); border: 1px solid var(--border-light); padding: 8px; border-radius: 4px; display: flex; flex-direction: column;">
+                    <div
+                        style="font-weight: 600; text-align: center; color: var(--error); padding-bottom: 4px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
+                        Local Draft (Will be overwritten)</div>
+                    <div id="notion-diff-local"
+                        style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.85rem; overflow-y: auto; flex-grow: 1;">
+                    </div>
+                </div>
+                <div
+                    style="background: var(--bg-deep); border: 1px solid var(--border-light); padding: 8px; border-radius: 4px; display: flex; flex-direction: column;">
+                    <div
+                        style="font-weight: 600; text-align: center; color: var(--success); padding-bottom: 4px; border-bottom: 1px solid var(--border-light); margin-bottom: 8px;">
+                        Notion Cloud (Incoming)</div>
+                    <div id="notion-diff-cloud"
+                        style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.85rem; overflow-y: auto; flex-grow: 1;">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button id="cancel-notion-diff-btn" class="btn btn-secondary">Cancel Pull</button>
+                <button id="apply-notion-pull-btn" class="btn btn-primary">Override Local File</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspector Mode Overlay -->
+    <div id="inspector-overlay" class="hidden">
+        <div class="inspector-tag"></div>
+        <div class="inspector-props"></div>
+    </div>
+
+    <script src="/js/prompts.js"></script>
+    <!-- ============ TTS CONTROL BAR (Floating Popover) ============ -->
+    <div id="tts-control-bar" class="tts-control-bar">
+        <div class="tts-speed-selector" title="Playback Speed">
+            <button class="speed-btn" data-speed="0.5">0.5</button>
+            <button class="speed-btn" data-speed="0.7">0.7</button>
+            <button class="speed-btn active" data-speed="1.0">1.0</button>
+            <button class="speed-btn" data-speed="1.2">1.2</button>
+            <button class="speed-btn" data-speed="1.5">1.5</button>
+            <button class="speed-btn" data-speed="2.0">2.0</button>
+        </div>
+        <div class="tts-slider-row">
+            <span id="tts-current-time" class="tts-time">0:00</span>
+            <input type="range" id="tts-progress-slider" class="tts-progress-slider" min="0" max="100" value="0">
+            <span id="tts-total-time" class="tts-time">0:00</span>
+        </div>
+    </div>
+
+    <script src="/js/logger.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/editor.js"></script>
+    <script src="/js/speech.js"></script>
+    <script src="/js/refinement.js"></script>
+    <script src="/js/prompt-studio.js"></script>
+    <script src="/js/chat.js"></script>
+    <script src="/js/notion-sync.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+
+</html>
