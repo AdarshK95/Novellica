@@ -243,5 +243,39 @@ const Editor = (() => {
         _fileNameEl.style.minWidth = '64px';
     }
 
-    return { init, loadFile, getContent, setContent, forceSave, setFontSize, setAutosaveInterval, getCurrentFile };
+    function jumpToLine(lineNumber, searchText) {
+        if (!_textarea) return;
+        const text = _textarea.value;
+        const lines = text.split('\n');
+
+        // Find cumulative char index for the start of the line
+        let charIndex = 0;
+        for (let i = 0; i < Math.min(lineNumber - 1, lines.length); i++) {
+            charIndex += lines[i].length + 1; // +1 for the newline
+        }
+
+        // Find the match within the line
+        let lineText = lines[lineNumber - 1] || '';
+        let matchOffset = 0;
+        if (searchText) {
+            // Case-insensitive search within the line
+            matchOffset = lineText.toLowerCase().indexOf(searchText.toLowerCase());
+            if (matchOffset === -1) matchOffset = 0;
+        }
+
+        const targetPos = charIndex + matchOffset;
+        const selectionLength = searchText ? searchText.length : 0;
+
+        _textarea.focus();
+        _textarea.setSelectionRange(targetPos, targetPos + selectionLength);
+
+        // Scroll adjustment: use center-ish positioning
+        // Approximate calculation since textarea doesn't have child elements for lines
+        const lineHeight = 1.8 * 16;
+        const scrollFactor = 0.5; // center
+        const visibleLines = _textarea.clientHeight / lineHeight;
+        _textarea.scrollTop = Math.max(0, (lineNumber - (visibleLines * scrollFactor)) * lineHeight);
+    }
+
+    return { init, loadFile, getContent, setContent, forceSave, setFontSize, setAutosaveInterval, getCurrentFile, jumpToLine };
 })();

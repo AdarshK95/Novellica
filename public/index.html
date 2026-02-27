@@ -135,8 +135,12 @@
 
             <div class="sidebar-section workspace-sidebar-section"
                 style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="section-header">
-                    <span>Workspace</span>
+                <div class="section-header" id="workspace-header" style="cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="workspace-chevron"
+                            style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); transition: transform 0.2s;">▾</span>
+                        <span>Workspace</span>
+                    </div>
                     <div class="section-header-actions">
                         <button id="toggle-chat-json-btn" class="icon-btn small"
                             title="Toggle hidden chat files">👁️‍🗨️</button>
@@ -145,7 +149,8 @@
                         <button id="new-ws-file-btn" class="icon-btn small" title="New File">+</button>
                     </div>
                 </div>
-                <div class="workspace-split-view" style="flex: 1; border: none; padding-top: 5px;">
+                <div class="workspace-split-view" id="workspace-content"
+                    style="flex: 1; border: none; padding-top: 5px;">
                     <div class="workspace-pane" id="drafts-pane" style="padding: 0;">
                         <div class="pane-header" style="padding-left: 8px; display: flex; align-items: center;">
                             <button class="icon-btn pane-toggle" id="drafts-pane-toggle" title="Collapse Drafts"
@@ -168,7 +173,35 @@
                     </div>
                 </div>
             </div>
-
+            <!-- ============ GLOBAL SEARCH ============ -->
+            <div class="sidebar-section search-sidebar-section" id="search-section"
+                style="flex: 0 0 auto; display: flex; flex-direction: column; min-height: 0;">
+                <!-- Draggable height resizer for search results -->
+                <div class="section-resizer" id="search-resizer" title="Drag to resize">
+                    <div class="section-resizer-line"></div>
+                    <button class="section-resizer-reset" id="search-reset" title="Reset height">↺</button>
+                </div>
+                <div class="section-header" id="search-header" style="cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="search-chevron"
+                            style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); transition: transform 0.2s;">▾</span>
+                        <span>Global Search</span>
+                    </div>
+                </div>
+                <div id="search-content"
+                    style="padding: 0 var(--space-lg) 10px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; gap: 6px;">
+                        <input id="global-search-input" type="text" placeholder="Search across all documents..."
+                            style="flex: 1; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-primary); padding: 5px 8px; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                        <button id="global-search-btn" class="btn btn-secondary"
+                            style="padding: 2px 8px; font-size: 0.75rem;">Search</button>
+                    </div>
+                    <div id="search-results-panel"
+                        style="max-height: 250px; overflow-y: auto; display: none; background: transparent; border-radius: 4px; padding: 4px; margin-top: 4px;">
+                        <!-- Results go here -->
+                    </div>
+                </div>
+            </div>
 
 
             <!-- ============ NOTION UNIFIED CONTAINER ============ -->
@@ -914,6 +947,7 @@
     <script src="/js/prompt-studio.js"></script>
     <script src="/js/chat.js"></script>
     <script src="/js/notion-sync.js"></script>
+    <script src="/js/search.js"></script>
     <script src="/js/app.js"></script>
 </body>
 

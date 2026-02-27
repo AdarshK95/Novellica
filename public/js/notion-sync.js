@@ -185,10 +185,23 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // We can't know total blocks ahead of time, so show an indeterminate-ish
-        // progress that fills up logarithmically (each chunk adds less %).
-        // Approximate: after N chunks, show roughly min(95, N * 15)%
-        const pct = Math.min(95, (chunkIndex + 1) * 15);
+        // Stage-based progress estimation:
+        // 1. 0-40%: Linear growth (10% per chunk)
+        // 2. 40-95%: Decelerating curve as we don't know the total size.
+        let pct = 0;
+        const n = chunkIndex + 1; // 1st chunk is n=1
+        if (n <= 4) {
+            pct = n * 10;
+        } else {
+            // Decelerating growth from 40% towards 95%
+            // Uses a simple hyperbola to approach 95 asymptotically.
+            const m = n - 4; // chunks after hitting the 40% mark
+            pct = 40 + (55 * (1 - (1 / (1 + 0.3 * m))));
+        }
+
+        // Never exceed 95% until backend confirms completion
+        pct = Math.min(95, pct);
+
         progressBar.style.width = pct + '%';
         progressBar.classList.remove('complete');
 

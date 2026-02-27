@@ -1821,4 +1821,5 @@ document.addEventListener('DOMContentLoaded', () => {
     App.init();
     FormatToolbar.init();
     InspectorMode.init();
+    GlobalSearch.init();
 });

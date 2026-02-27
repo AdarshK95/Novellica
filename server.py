@@ -984,6 +984,55 @@ async def fs_duplicate(request: Request):
         return JSONResponse({"error": "Invalid path"}, status_code=400)
 
 
+@app.get("/api/search")
+async def global_search(q: str):
+    """Search for text across all project documents."""
+    if not q or len(q) < 2:
+        return []
+
+    results = []
+    q_lower = q.lower()
+
+    for entry in PROJECTS_DIR.rglob("*"):
+        try:
+            # Skip hidden and internal folders
+            if any(part.startswith('.') or part == '_tts_cache' or part == '__pycache__' for part in entry.parts):
+                continue
+            if not entry.is_file():
+                continue
+            # Basic text file filter
+            if entry.suffix.lower() not in ('.md', '.txt', '.json', '.yaml', '.yml', '.markdown'):
+                continue
+
+            content = entry.read_text(encoding="utf-8")
+            if q_lower not in content.lower():
+                continue
+
+            rel_path = entry.relative_to(PROJECTS_DIR).as_posix()
+            lines = content.splitlines()
+            matches = []
+            for i, line in enumerate(lines):
+                if q_lower in line.lower():
+                    matches.append({
+                        "line": i + 1,
+                        "text": line.strip()[:150] # Snippet limit
+                    })
+
+            if matches:
+                results.append({
+                    "path": rel_path,
+                    "name": entry.name,
+                    "matches": matches[:20] # Limit matches per file
+                })
+            
+            if len(results) > 50: # Limit total files to avoid UI overload
+                break
+        except Exception:
+            continue
+
+    return results
+
+
 # ==============================================================================
 # TTS — Kokoro v1.0 (82M) Engine
 # ==============================================================================

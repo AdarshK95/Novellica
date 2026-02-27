@@ -2997,3 +2997,19 @@ body {
         opacity: 1;
     }
 }
+
+/* ============================================================================
+   Global Search Results
+   ============================================================================ */
+.search-result-group {
+    animation: slideIn var(--duration-normal) var(--ease-out);
+}
+
+.search-result-match {
+    position: relative;
+    transition: all var(--duration-fast);
+}
+
+.search-result-match:hover {
+    border-left-color: var(--accent) !important;
+}

@@ -12,6 +12,8 @@ const Sidebar = (() => {
     let _contextTarget = null; // { type, path }
     let _dragItem = null;      // { type, path }
     let _showChatJson = false; // toggle for .chat.json visibility
+    let _workspaceCollapsed = false;
+    let _panesCollapsed = { drafts: false, refined: false };
 
     function init(onFileSelect) {
         _onFileSelect = onFileSelect;
@@ -22,8 +24,11 @@ const Sidebar = (() => {
             if (saved) _collapsed = JSON.parse(saved);
             _activeProject = localStorage.getItem('storyforge_active_project') || '';
             _showChatJson = localStorage.getItem('storyforge_show_chat_json') === 'true';
+            _workspaceCollapsed = localStorage.getItem('storyforge_workspace_collapsed') === 'true';
+            _panesCollapsed = JSON.parse(localStorage.getItem('storyforge_panes_collapsed') || '{"drafts":false, "refined":false}');
 
-            // Auto-open last document for this project
+            // Initial view sync
+            syncWorkspaceView();
             const lastFile = localStorage.getItem('storyforge_last_file_' + (_activeProject || 'root'));
             if (lastFile) {
                 openFileFromPath(lastFile);
@@ -81,6 +86,38 @@ const Sidebar = (() => {
             if (action) handleContextAction(action);
         });
         document.addEventListener('click', hideContextMenu);
+
+        // Sidebar Workspace Collapse
+        const wsHeader = document.getElementById('workspace-header');
+        if (wsHeader) {
+            wsHeader.addEventListener('click', (e) => {
+                // If clicked on actions (buttons), don't collapse
+                if (e.target.closest('.section-header-actions')) return;
+                _workspaceCollapsed = !_workspaceCollapsed;
+                localStorage.setItem('storyforge_workspace_collapsed', _workspaceCollapsed);
+                syncWorkspaceView();
+            });
+        }
+
+        // Pane toggles
+        const draftsToggle = document.getElementById('drafts-pane-toggle');
+        if (draftsToggle) {
+            draftsToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _panesCollapsed.drafts = !_panesCollapsed.drafts;
+                localStorage.setItem('storyforge_panes_collapsed', JSON.stringify(_panesCollapsed));
+                syncWorkspaceView();
+            });
+        }
+        const refinedToggle = document.getElementById('refined-pane-toggle');
+        if (refinedToggle) {
+            refinedToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _panesCollapsed.refined = !_panesCollapsed.refined;
+                localStorage.setItem('storyforge_panes_collapsed', JSON.stringify(_panesCollapsed));
+                syncWorkspaceView();
+            });
+        }
 
         // Workspace Pane Drop Targets
         const wsDraftsEl = document.getElementById('workspace-drafts');
@@ -995,11 +1032,46 @@ const Sidebar = (() => {
     // Helpers
     // =========================================================================
 
+    function syncWorkspaceView() {
+        const wsContent = document.getElementById('workspace-content');
+        const wsChevron = document.getElementById('workspace-chevron');
+        if (wsContent) {
+            wsContent.style.display = _workspaceCollapsed ? 'none' : 'flex';
+        }
+        if (wsChevron) {
+            wsChevron.style.transform = _workspaceCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+        }
+
+        const draftsPane = document.getElementById('drafts-pane');
+        const refinedPane = document.getElementById('refined-pane');
+        const draftsToggle = document.getElementById('drafts-pane-toggle');
+        const refinedToggle = document.getElementById('refined-pane-toggle');
+
+        if (draftsPane) {
+            if (_panesCollapsed.drafts) {
+                draftsPane.classList.add('pane-collapsed');
+            } else {
+                draftsPane.classList.remove('pane-collapsed');
+            }
+        }
+        if (refinedPane) {
+            if (_panesCollapsed.refined) {
+                refinedPane.classList.add('pane-collapsed');
+            } else {
+                refinedPane.classList.remove('pane-collapsed');
+            }
+        }
+
+        // Toggle button icons (simple way)
+        if (draftsToggle) draftsToggle.style.opacity = _panesCollapsed.drafts ? '0.4' : '1';
+        if (refinedToggle) refinedToggle.style.opacity = _panesCollapsed.refined ? '0.4' : '1';
+    }
+
     function escHtml(str) {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
 
-    return { init, refreshTree, updateFileContent, saveFile };
+    return { init, refreshTree, updateFileContent, saveFile, openFileFromPath };
 })();
