@@ -930,6 +930,11 @@ const App = (() => {
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.toggle('active', content.id === `tab-${tabId}`);
         });
+
+        if (tabId === 'chat' && typeof Chat !== 'undefined' && Chat.reloadPrompts) {
+            Chat.reloadPrompts();
+        }
+
         localStorage.setItem('storyforge_active_tab', tabId);
     }
 

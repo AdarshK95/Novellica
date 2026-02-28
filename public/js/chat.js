@@ -41,6 +41,10 @@ const Chat = (() => {
     async function loadPromptButtons() {
         const prompts = await Prompts.load();
         _promptButtonsEl.innerHTML = '';
+
+        // Remove any selected prompts that no longer exist
+        _selectedSequence = _selectedSequence.filter(slug => prompts.some(p => p.slug === slug));
+
         for (const p of prompts) {
             const btn = document.createElement('button');
             btn.className = 'prompt-toggle-btn';
@@ -523,6 +527,7 @@ const Chat = (() => {
         clear,
         clearHistory,
         loadHistory,
-        hasSequence: () => _selectedSequence.length > 0
+        hasSequence: () => _selectedSequence.length > 0,
+        reloadPrompts: loadPromptButtons
     };
 })();
