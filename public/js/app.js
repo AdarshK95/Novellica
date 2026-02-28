@@ -614,15 +614,17 @@ const App = (() => {
         Logger.log('success', 'Session restored');
     }
 
-    // --- API Key ---
+    // --- UI Elements ---
+    let currentEditingKey = null; // Track which key is currently being edited/viewed in the right pane
+    let tempModelsList = []; // Track models for the currently editing provider before save
+
     async function loadApiKey() {
         try {
             const res = await fetch('/api/key');
             const data = await res.json();
             if (data.exists && data.key) {
                 localStorage.setItem('storyforge_api_key', data.key);
-                updateKeyDisplay(data.masked);
-                Logger.log('success', 'API key loaded from server');
+                Logger.log('success', 'Active provider loaded from server');
                 fetchModelsOnInit();
             } else {
                 const localKey = localStorage.getItem('storyforge_api_key');
@@ -630,7 +632,7 @@ const App = (() => {
                 else fetchModelsOnInit();
             }
         } catch (err) {
-            console.error('Failed to load API key:', err);
+            console.error('Failed to load active provider:', err);
             const localKey = localStorage.getItem('storyforge_api_key');
             if (!localKey) showModal();
         }
@@ -676,38 +678,83 @@ const App = (() => {
         }
     }
 
-    // Setup Provider Dropdown Toggle
+    // Setup Provider Dropdown Toggle (Right Pane)
     document.getElementById('api-provider-select').addEventListener('change', (e) => {
         const val = e.target.value;
         const baseUrlContainer = document.getElementById('api-base-url-container');
-        const customModelsContainer = document.getElementById('api-custom-models-container');
 
         if (val === 'custom') {
             baseUrlContainer.classList.remove('hidden');
         } else {
             baseUrlContainer.classList.add('hidden');
         }
+    });
 
-        if (val !== 'google') {
-            customModelsContainer.classList.remove('hidden');
-        } else {
-            customModelsContainer.classList.add('hidden');
+    document.getElementById('add-new-provider-btn').addEventListener('click', () => {
+        showProviderDetails(null);
+    });
+
+    document.getElementById('add-model-btn').addEventListener('click', () => {
+        const input = document.getElementById('add-model-input');
+        const modelId = input.value.trim();
+        if (modelId && !tempModelsList.includes(modelId)) {
+            tempModelsList.push(modelId);
+            renderModelsList();
+            input.value = '';
         }
     });
+
+    document.getElementById('add-model-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('add-model-btn').click();
+        }
+    });
+
+    function renderModelsList() {
+        const container = document.getElementById('provider-models-tags');
+        container.innerHTML = '';
+
+        if (tempModelsList.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85em; font-style: italic;">No custom models added.</div>';
+            return;
+        }
+
+        tempModelsList.forEach(model => {
+            const tag = document.createElement('div');
+            tag.style.cssText = 'background: var(--bg-deep); border: 1px solid var(--border-light); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = model;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '✕';
+            removeBtn.style.cssText = 'background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.8rem; outline: none; padding: 0; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; line-height: 1; border-radius: 50%;';
+
+            removeBtn.addEventListener('click', () => {
+                tempModelsList = tempModelsList.filter(m => m !== model);
+                renderModelsList();
+            });
+
+            tag.appendChild(nameSpan);
+            tag.appendChild(removeBtn);
+            container.appendChild(tag);
+        });
+    }
 
     async function submitApiKey() {
         const input = document.getElementById('api-key-input');
         const providerSel = document.getElementById('api-provider-select');
         const baseUrlInput = document.getElementById('api-base-url-input');
-        const customModelsInput = document.getElementById('api-custom-models-input');
+        const labelInput = document.getElementById('api-label-input');
 
         const errorEl = document.getElementById('api-key-error');
         const logEl = document.getElementById('api-key-log');
-        const key = input.value.trim();
+
+        const key = input.value.trim() || currentEditingKey || '';
         const provider = providerSel.value;
         const baseUrl = baseUrlInput.value.trim();
-        const customModelsStr = customModelsInput.value;
-        const customModels = customModelsStr.split(',').map(m => m.trim()).filter(Boolean);
+        const label = labelInput.value.trim();
 
         if (!key) {
             errorEl.textContent = 'Please enter your API key';
@@ -716,15 +763,15 @@ const App = (() => {
             return;
         }
 
-        if (provider !== 'google' && customModels.length === 0) {
-            errorEl.textContent = 'Please provide at least one custom model (e.g. openai/gpt-4o)';
+        if (provider !== 'google' && tempModelsList.length === 0) {
+            errorEl.textContent = 'Please add at least one custom model for non-Google providers.';
             errorEl.classList.remove('hidden');
             logEl.classList.add('hidden');
             return;
         }
 
         errorEl.classList.add('hidden');
-        logEl.innerHTML = '<div><span class="log-info">✦</span> Validating key...</div>';
+        logEl.innerHTML = '<div><span class="log-info">✦</span> Saving and Validating...</div>';
         logEl.classList.remove('hidden');
 
         try {
@@ -733,45 +780,49 @@ const App = (() => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     apiKey: key,
+                    label: label,
                     provider: provider,
                     baseUrl: baseUrl,
-                    customModels: customModels
+                    customModels: tempModelsList
                 }),
             });
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || 'Invalid key');
+                throw new Error(data.error || 'Invalid key or configuration');
             }
 
-            logEl.innerHTML += '<div><span class="log-success">✓</span> Key valid — connected to API</div>';
-            logEl.innerHTML += '<div><span class="log-info">⟳</span> Fetching available models...</div>';
+            logEl.innerHTML += '<div><span class="log-success">✓</span> Connection successful</div>';
 
             const models = data.models || [];
             if (models.length > 0) {
-                logEl.innerHTML += `<div><span class="log-success">✓</span> Found ${models.length} model(s):</div>`;
-                logEl.innerHTML += `<div class="api-key-models-list">${models.map(m => m.name || m.id).join(', ')}</div>`;
+                logEl.innerHTML += `<div><span class="log-success">✓</span> Connected! Found ${models.length} model(s).</div>`;
                 populateModelDropdown(models);
-            } else {
-                logEl.innerHTML += '<div><span class="log-warn">⚠</span> Connected but no models found</div>';
             }
 
-            logEl.innerHTML += '<div><span class="log-success">✓</span> Key saved and set as active</div>';
-
             localStorage.setItem('storyforge_api_key', key);
-            const masked = key.slice(0, 6) + '•'.repeat(Math.max(0, key.length - 10)) + key.slice(-4);
-            updateKeyDisplay(masked);
-            input.value = '';
+            input.value = ''; // clear input to show placeholder only
 
-            toast('API key validated & saved', 'success');
-            Logger.log('success', 'API key saved and stored in .env');
+            toast('Connection saved and set as active', 'success');
+            Logger.log('success', 'Provider saved and stored in .env');
 
             await loadStoredKeys();
+
+            // Re-select to refresh UI details cleanly
+            showProviderDetails({
+                key: key,
+                label: label || `Key — ${key.slice(0, 8)}...`,
+                provider: provider,
+                baseUrl: baseUrl,
+                customModels: tempModelsList,
+                active: true
+            });
+
         } catch (err) {
             logEl.innerHTML += `<div><span class="log-error">✕</span> Error: ${err.message}</div>`;
             errorEl.textContent = err.message;
             errorEl.classList.remove('hidden');
-            Logger.log('error', 'API key validation failed: ' + err.message);
+            Logger.log('error', 'API validation failed: ' + err.message);
         }
     }
 
@@ -799,10 +850,7 @@ const App = (() => {
     }
 
     function updateKeyDisplay(masked) {
-        const display = document.getElementById('current-key-display');
-        const maskedEl = document.getElementById('masked-key');
-        display.classList.remove('hidden');
-        maskedEl.textContent = masked;
+        // Obsolete UI elements removed in HTML
     }
 
     async function copyApiKey() {
@@ -822,14 +870,17 @@ const App = (() => {
     // --- Multi-key management ---
 
     async function loadStoredKeys() {
-        const section = document.getElementById('stored-keys-section');
         const list = document.getElementById('stored-keys-list');
         try {
             const res = await fetch('/api/keys');
             const keys = await res.json();
-            if (!keys.length) { section.classList.add('hidden'); return; }
-            section.classList.remove('hidden');
             list.innerHTML = '';
+
+            if (!keys.length) {
+                list.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 10px; text-align: center;">No connections found.</div>';
+                return;
+            }
+
             for (const k of keys) {
                 const item = document.createElement('div');
                 item.className = 'stored-key-item' + (k.active ? ' active' : '');
@@ -839,34 +890,112 @@ const App = (() => {
                         k.provider === 'openrouter' ? 'OpenRouter' : 'Custom';
 
                 item.innerHTML = `
-                    <span class="key-dot"></span>
+                    <span class="key-dot" style="${k.active ? '' : 'background: transparent; border: 1px solid var(--border-light);'}"></span>
                     <div class="key-info">
                         <div class="key-label-text">
-                            <span style="font-size:0.75rem; background:var(--bg-hover); padding:2px 6px; border-radius:4px; margin-right:6px; color:var(--text-muted);">${provBadge}</span>
-                            ${escHtml(k.label || k.masked)}
+                            <span style="font-size:0.7rem; background:var(--bg-hover); padding:2px 4px; border-radius:3px; margin-right:4px; color:var(--text-muted);">${provBadge}</span>
+                            <span style="font-weight: 500;">${escHtml(k.label || k.masked)}</span>
                         </div>
-                        <div class="key-masked-text">${escHtml(k.masked)}${k.added ? ' · ' + escHtml(k.added) : ''}</div>
+                        <div class="key-masked-text">${escHtml(k.masked)}</div>
                     </div>
-                    <div class="key-actions">
-                        <button class="key-action-btn" data-act="copy" title="Copy">📋</button>
-                        <button class="key-action-btn danger" data-act="del" title="Delete">✕</button>
-                    </div>`;
-                // Click row to switch active key
-                item.addEventListener('click', (e) => {
-                    if (e.target.closest('.key-action-btn')) return;
-                    selectKey(k.key);
+                `;
+
+                // Click row to view details on the right
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.stored-key-item').forEach(el => el.style.borderLeftColor = 'transparent');
+                    item.style.borderLeftColor = 'var(--accent)';
+                    showProviderDetails(k);
                 });
-                item.querySelector('[data-act="copy"]').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(k.key).then(() => toast('Key copied', 'success'));
-                });
-                item.querySelector('[data-act="del"]').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteKey(k.key);
-                });
+
                 list.appendChild(item);
+
+                // Keep the active one highlighted natively if it's the currently viewed one
+                if (currentEditingKey === k.key) {
+                    item.style.borderLeftColor = 'var(--accent)';
+                }
             }
         } catch (err) { console.error('Failed to load stored keys:', err); }
+    }
+
+    function showProviderDetails(k) {
+        const emptyState = document.getElementById('provider-details-empty');
+        const form = document.getElementById('provider-details-form');
+        const logEl = document.getElementById('api-key-log');
+        const errorEl = document.getElementById('api-key-error');
+
+        logEl.classList.add('hidden');
+        errorEl.classList.add('hidden');
+
+        if (!k) {
+            // New Provider Mode
+            emptyState.classList.add('hidden');
+            form.classList.remove('hidden');
+
+            currentEditingKey = null;
+            document.getElementById('api-key-id-hidden').value = '';
+            document.getElementById('api-label-input').value = '';
+            document.getElementById('api-provider-select').value = 'openrouter';
+            document.getElementById('api-base-url-input').value = '';
+            document.getElementById('api-key-input').value = '';
+            document.getElementById('api-key-input').placeholder = 'Enter new API Key';
+
+            tempModelsList = [];
+            renderModelsList();
+
+            document.getElementById('api-base-url-container').classList.add('hidden');
+            document.getElementById('api-key-delete').classList.add('hidden');
+            document.getElementById('api-key-set-active').classList.add('hidden');
+
+            return;
+        }
+
+        // Edit Mode
+        emptyState.classList.add('hidden');
+        form.classList.remove('hidden');
+
+        currentEditingKey = k.key;
+        document.getElementById('api-key-id-hidden').value = k.key;
+        document.getElementById('api-label-input').value = k.label || '';
+        document.getElementById('api-provider-select').value = k.provider || 'openrouter';
+        document.getElementById('api-base-url-input').value = k.baseUrl || '';
+        document.getElementById('api-key-input').value = ''; // Don't put actual key, put placeholder
+        document.getElementById('api-key-input').placeholder = '•••••••••••• (Leave blank to keep)';
+
+        tempModelsList = [...(k.customModels || [])];
+        renderModelsList();
+
+        if (k.provider === 'custom') {
+            document.getElementById('api-base-url-container').classList.remove('hidden');
+        } else {
+            document.getElementById('api-base-url-container').classList.add('hidden');
+        }
+
+        const delBtn = document.getElementById('api-key-delete');
+        const activeBtn = document.getElementById('api-key-set-active');
+
+        delBtn.classList.remove('hidden');
+        activeBtn.classList.remove('hidden');
+
+        // Remove old listeners to avoid stacking
+        const newDelBtn = delBtn.cloneNode(true);
+        delBtn.parentNode.replaceChild(newDelBtn, delBtn);
+        newDelBtn.addEventListener('click', () => deleteKey(k.key));
+
+        const newActiveBtn = activeBtn.cloneNode(true);
+        activeBtn.parentNode.replaceChild(newActiveBtn, activeBtn);
+
+        if (k.active) {
+            newActiveBtn.disabled = true;
+            newActiveBtn.textContent = 'Active Connection';
+            newDelBtn.disabled = true;
+            newDelBtn.title = "Cannot delete active connection";
+        } else {
+            newActiveBtn.disabled = false;
+            newActiveBtn.textContent = 'Set Active';
+            newActiveBtn.addEventListener('click', () => selectKey(k.key));
+            newDelBtn.disabled = false;
+            newDelBtn.title = "";
+        }
     }
 
     async function selectKey(key) {
@@ -880,8 +1009,15 @@ const App = (() => {
             localStorage.setItem('storyforge_api_key', key);
             const masked = key.slice(0, 6) + '•'.repeat(Math.max(0, key.length - 10)) + key.slice(-4);
             updateKeyDisplay(masked);
-            toast('Switched active key', 'success');
+            toast('Switched active provider', 'success');
             await loadStoredKeys();
+
+            // Re-render right pane to reflect new active state
+            if (currentEditingKey === key) {
+                const updatedKeys = await fetch('/api/keys').then(r => r.json());
+                const matching = updatedKeys.find(k => k.key === key);
+                if (matching) showProviderDetails(matching);
+            }
         } catch (err) { toast(err.message, 'error'); }
     }
 
@@ -893,7 +1029,10 @@ const App = (() => {
                 body: JSON.stringify({ apiKey: key }),
             });
             if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-            toast('Key removed', 'success');
+            toast('Connection removed', 'success');
+            if (currentEditingKey === key) {
+                showProviderDetails(null); // Clear form if deleted the active view
+            }
             await loadStoredKeys();
         } catch (err) { toast(err.message, 'error'); }
     }
@@ -908,14 +1047,13 @@ const App = (() => {
     function showModal() {
         const modal = document.getElementById('api-key-modal');
         modal.classList.remove('hidden');
-        // Refresh key display
-        const key = localStorage.getItem('storyforge_api_key');
-        if (key) {
-            const masked = key.slice(0, 6) + '•'.repeat(Math.max(0, key.length - 10)) + key.slice(-4);
-            updateKeyDisplay(masked);
-        }
-        // Load stored keys list
-        loadStoredKeys();
+        // Load stored keys list and reset right pane
+        loadStoredKeys().then(() => {
+            // default to new provider or empty depending on preference, we will put empty view
+            showProviderDetails(null);
+            document.getElementById('provider-details-empty').classList.remove('hidden');
+            document.getElementById('provider-details-form').classList.add('hidden');
+        });
     }
 
     function hideModal() {
@@ -1166,10 +1304,18 @@ const Layout = (() => {
             if (savedLayout) {
                 const layout = JSON.parse(savedLayout);
                 const app = document.getElementById('app');
-                if (layout.sb) app.style.setProperty('--sidebar-width', layout.sb);
-                if (layout.ed) app.style.setProperty('--editor-width', layout.ed);
-                if (layout.rf) app.style.setProperty('--refine-width', layout.rf);
-                if (layout.c4) app.style.setProperty('--col4-width', layout.c4);
+                // Only restore percentage-based values; reject stale pixel values
+                const isPercent = (v) => v && v.endsWith('%');
+                if (isPercent(layout.sb) && isPercent(layout.ed) && isPercent(layout.rf) && isPercent(layout.c4)) {
+                    app.style.setProperty('--sidebar-width', layout.sb);
+                    app.style.setProperty('--editor-width', layout.ed);
+                    app.style.setProperty('--refine-width', layout.rf);
+                    app.style.setProperty('--col4-width', layout.c4);
+                } else {
+                    // Clear stale pixel-based layout
+                    localStorage.removeItem('storyforge_layout');
+                    console.warn('[Layout] Cleared stale pixel-based layout, using defaults');
+                }
                 window.dispatchEvent(new Event('layoutChanged'));
             }
         } catch (e) {
@@ -1216,6 +1362,18 @@ const Layout = (() => {
                 // Fallback: window event for other modules
                 window.dispatchEvent(new Event('layoutChanged'));
             }
+        });
+
+        // Resizer Collapse Buttons — trigger the panel's own toggle button
+        document.querySelectorAll('.resizer-collapse').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const toggleBtnId = btn.dataset.toggleBtn;
+                if (toggleBtnId) {
+                    const toggleBtn = document.getElementById(toggleBtnId);
+                    if (toggleBtn) toggleBtn.click();
+                }
+            });
         });
 
         // Workspace Pane Toggles (Drafts / Story-Refined)
@@ -1350,8 +1508,8 @@ const Layout = (() => {
     let totalWidth = 0;
 
     function onResizerDown(e) {
-        // Don't start drag if clicking the reset button
-        if (e.target.classList.contains('resizer-reset')) return;
+        // Don't start drag if clicking the reset or collapse button
+        if (e.target.classList.contains('resizer-reset') || e.target.classList.contains('resizer-collapse')) return;
 
         activeResizer = e.target.closest('.resizer') || e.target;
         activeResizer.classList.add('dragging');
@@ -1394,13 +1552,13 @@ const Layout = (() => {
         let newLeft = startLeftWidth + delta;
         let newRight = startRightWidth - delta;
 
-        // Enforce min widths
-        if (newLeft < 300) { newLeft = 300; newRight = totalWidth - 300; }
-        if (newRight < 300) { newRight = 300; newLeft = totalWidth - 300; }
+        // Enforce min widths (sidebar can be narrower than other panels)
+        const minLeft = (leftVarName === '--sidebar-width') ? 180 : 300;
+        const minRight = (rightVarName === '--sidebar-width') ? 180 : 300;
+        if (newLeft < minLeft) { newLeft = minLeft; newRight = totalWidth - minLeft; }
+        if (newRight < minRight) { newRight = minRight; newLeft = totalWidth - minRight; }
 
         const app = document.getElementById('app');
-        // By setting explicit px values, the grid maintains rigid column sizes
-        // and overflows naturally to trigger the horizontal scroll bar when the window shrinks.
         app.style.setProperty(leftVarName, newLeft + 'px');
         app.style.setProperty(rightVarName, newRight + 'px');
     }
@@ -1412,10 +1570,28 @@ const Layout = (() => {
         activeResizer.removeEventListener('pointermove', onResizerMove);
         activeResizer.removeEventListener('pointerup', onResizerUp);
         activeResizer.removeEventListener('pointercancel', onResizerUp);
+
+        // Convert pixel values to percentages so layout scales with window resize
+        const app = document.getElementById('app');
+        const vw = window.innerWidth;
+        if (leftVarName && rightVarName && vw > 0) {
+            const leftPanel = activeResizer.previousElementSibling;
+            const rightPanel = activeResizer.nextElementSibling;
+            if (leftPanel && rightPanel) {
+                const leftPct = ((leftPanel.offsetWidth / vw) * 100).toFixed(2) + '%';
+                const rightPct = ((rightPanel.offsetWidth / vw) * 100).toFixed(2) + '%';
+                app.style.setProperty(leftVarName, leftPct);
+                app.style.setProperty(rightVarName, rightPct);
+            }
+        }
+
         activeResizer = null;
 
         // Restore transition
-        document.getElementById('app').style.transition = '';
+        app.style.transition = '';
+
+        // Persist the layout
+        saveCurrentLayout();
     }
 
     function toggle(cfg) {
@@ -1456,15 +1632,59 @@ const Layout = (() => {
     }
 
     function saveCurrentLayout() {
-        const app = document.getElementById('app');
-        const style = getComputedStyle(app);
-        const layout = {
-            sb: style.getPropertyValue('--sidebar-width').trim(),
-            ed: style.getPropertyValue('--editor-width').trim(),
-            rf: style.getPropertyValue('--refine-width').trim(),
-            c4: style.getPropertyValue('--col4-width').trim()
-        };
-        localStorage.setItem('storyforge_layout', JSON.stringify(layout));
+        // Defer to next frame so the browser has finished layout recalculation
+        requestAnimationFrame(() => {
+            const vw = window.innerWidth;
+            if (vw <= 0) return;
+
+            // Don't save while any column is collapsed — widths are meaningless
+            const anyCollapsed = document.querySelector('.panel.collapsed');
+            if (anyCollapsed) {
+                // Just save the CSS variable values as-is (they're already percentages)
+                const app = document.getElementById('app');
+                const style = getComputedStyle(app);
+                const layout = {
+                    sb: style.getPropertyValue('--sidebar-width').trim(),
+                    ed: style.getPropertyValue('--editor-width').trim(),
+                    rf: style.getPropertyValue('--refine-width').trim(),
+                    c4: style.getPropertyValue('--col4-width').trim()
+                };
+                // Only save if all values are percentages
+                const allPct = Object.values(layout).every(v => v && v.endsWith('%'));
+                if (allPct) localStorage.setItem('storyforge_layout', JSON.stringify(layout));
+                return;
+            }
+
+            const sidebar = document.getElementById('sidebar');
+            const editor = document.getElementById('editor-panel');
+            const refine = document.getElementById('refinement-panel');
+            if (!sidebar || !editor || !refine) return;
+
+            const sbPct = ((sidebar.offsetWidth / vw) * 100).toFixed(2);
+            const edPct = ((editor.offsetWidth / vw) * 100).toFixed(2);
+            const rfPct = ((refine.offsetWidth / vw) * 100).toFixed(2);
+            const c4Pct = (100 - parseFloat(sbPct) - parseFloat(edPct) - parseFloat(rfPct)).toFixed(2);
+
+            // Sanity check — all values must be positive and reasonable
+            const vals = [parseFloat(sbPct), parseFloat(edPct), parseFloat(rfPct), parseFloat(c4Pct)];
+            if (vals.some(v => v < 1 || v > 90 || isNaN(v))) {
+                console.warn('[Layout] saveCurrentLayout: bogus values, skipping', vals);
+                return;
+            }
+
+            const app = document.getElementById('app');
+            app.style.setProperty('--sidebar-width', sbPct + '%');
+            app.style.setProperty('--editor-width', edPct + '%');
+            app.style.setProperty('--refine-width', rfPct + '%');
+            app.style.setProperty('--col4-width', c4Pct + '%');
+
+            localStorage.setItem('storyforge_layout', JSON.stringify({
+                sb: sbPct + '%',
+                ed: edPct + '%',
+                rf: rfPct + '%',
+                c4: c4Pct + '%'
+            }));
+        });
     }
 
     return { init, applyIdealProportions, saveCurrentLayout };

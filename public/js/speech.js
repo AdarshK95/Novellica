@@ -240,7 +240,7 @@ const Speech = (() => {
                 if (_audio) _audio.pause();
                 if (_isStreamPlaying) _isStreamAborted = true; // Signals reader loop to pause intake
                 _isPaused = true;
-                btnEl.textContent = '▶️';
+                btnEl.textContent = '⏯';
             }
             return;
         }

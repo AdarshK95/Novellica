@@ -225,7 +225,8 @@ async def save_key(request: Request):
     """Save API key to .env, validate it, and return available models."""
     body = await request.json()
     key = body.get("apiKey", "").strip()
-    provider = body.get("provider", "google")
+    provider = body.get("provider", "openrouter")
+    label = body.get("label", "").strip()
     base_url = body.get("baseUrl", "").strip()
     custom_models = body.get("customModels", [])
 
@@ -258,7 +259,7 @@ async def save_key(request: Request):
     _write_env("API_PROVIDER", provider)
     _write_env("API_BASE_URL", base_url)
 
-    _add_key_to_store(key, provider=provider, base_url=base_url, custom_models=custom_models)
+    _add_key_to_store(key, label=label, provider=provider, base_url=base_url, custom_models=custom_models)
 
     return {"status": "ok", "models": models}
 
@@ -266,7 +267,7 @@ async def save_key(request: Request):
 @app.get("/api/models")
 async def list_models():
     """Return available models for the current API key/provider."""
-    provider = _read_env_var("API_PROVIDER") or os.getenv("API_PROVIDER", "google")
+    provider = _read_env_var("API_PROVIDER") or os.getenv("API_PROVIDER", "openrouter")
 
     if provider == "google":
         try:
@@ -352,13 +353,15 @@ def _save_keys(keys: list[dict]):
     KEYS_FILE.write_text(json.dumps(keys, indent=2), encoding="utf-8")
 
 
-def _add_key_to_store(key: str, label: str = "", provider: str = "google", base_url: str = "", custom_models: Optional[list] = None):
+def _add_key_to_store(key: str, label: str = "", provider: str = "openrouter", base_url: str = "", custom_models: Optional[list] = None):
     """Add a key to keys.json if it doesn't already exist."""
     keys = _load_keys()
     existing = False
     for k in keys:
         if k.get("key") == key:
             k["provider"] = provider
+            if label:
+                k["label"] = label
             k["baseUrl"] = base_url
             if custom_models is not None:
                 k["customModels"] = custom_models
@@ -396,7 +399,7 @@ async def list_all_keys():
         result.append({
             "key": k["key"],
             "label": k.get("label", ""),
-            "provider": k.get("provider", "google"),
+            "provider": k.get("provider", "openrouter"),
             "baseUrl": k.get("baseUrl", ""),
             "customModels": k.get("customModels", []),
             "masked": _mask_key(k["key"]),
@@ -418,7 +421,7 @@ async def select_key(request: Request):
     if not k_obj:
         return JSONResponse({"error": "Key not found"}, status_code=404)
 
-    provider = k_obj.get("provider", "google")
+    provider = k_obj.get("provider", "openrouter")
     base_url = k_obj.get("baseUrl", "")
 
     # Set as active in .env
@@ -680,13 +683,28 @@ async def generate(request: Request):
 
         async def event_stream_openai():
             try:
-                response = client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    temperature=0.8,
-                    max_tokens=8192,
-                    stream=True
-                )
+                kwargs = {
+                    "model": model_name,
+                    "messages": messages,
+                    "temperature": 0.8,
+                    "max_tokens": 8192,
+                    "stream": True
+                }
+                
+                if provider == "openrouter":
+                    # Enforce Zero Data Retention and provide App title
+                    kwargs["extra_headers"] = {
+                        "HTTP-Referer": "http://localhost:5000",
+                        "X-Title": "Novellica"
+                    }
+                    kwargs["extra_body"] = {
+                        "provider": {
+                            "zdr": True,
+                            "data_collection": "deny"
+                        }
+                    }
+
+                response = client.chat.completions.create(**kwargs)
                 for chunk in response:
                     if len(chunk.choices) > 0:
                         delta = chunk.choices[0].delta.content
@@ -1476,4 +1494,4 @@ app.mount("/", StaticFiles(directory="public", html=True), name="public")
 if __name__ == "__main__":
     import uvicorn
     print("\n  >>> Novellica running at http://localhost:5000\n")
-    uvicorn.run("server:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=5000)

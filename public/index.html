@@ -19,71 +19,104 @@
 <body>
     <!-- API Key Modal -->
     <div id="api-key-modal" class="modal-overlay hidden">
-        <div class="modal">
+        <div class="modal provider-modal">
             <button id="api-key-close" class="modal-close-btn icon-btn" title="Close">✕</button>
             <div class="modal-icon">✦</div>
-            <h2>API Keys</h2>
-            <p class="modal-subtitle">Manage your Google Gemini API keys</p>
-            <div id="current-key-display" class="current-key-area hidden">
-                <label>Current Key</label>
-                <div class="key-row">
-                    <span id="masked-key" class="masked-key"></span>
-                    <button id="copy-key-btn" class="icon-btn small" title="Copy key">📋</button>
+            <h2>Provider Management</h2>
+            <p class="modal-subtitle">Manage your AI API connections and models</p>
+
+            <div class="provider-modal-split" style="display: flex; gap: 20px; align-items: stretch; margin-top: 15px;">
+                <!-- Left: List of Connections -->
+                <div class="provider-list-pane"
+                    style="flex: 1; border-right: 1px solid var(--border-light); padding-right: 15px; display: flex; flex-direction: column;">
+                    <button class="btn btn-secondary" id="add-new-provider-btn"
+                        style="margin-bottom: 10px; width: 100%;">+ New Connection</button>
+                    <div id="stored-keys-list"
+                        style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1;">
+                        <!-- Stored keys render here -->
+                    </div>
+                </div>
+
+                <!-- Right: Details Pane -->
+                <div class="provider-details-pane" style="flex: 2; display: flex; flex-direction: column;">
+                    <div id="provider-details-empty"
+                        style="text-align: center; color: var(--text-muted); margin: auto;">Select a connection or add a
+                        new one.</div>
+
+                    <div id="provider-details-form" class="hidden"
+                        style="display: flex; flex-direction: column; gap: 12px;">
+                        <input type="hidden" id="api-key-id-hidden"> <!-- Used to track if editing existing -->
+
+                        <div class="input-group">
+                            <label>Connection Name</label>
+                            <input type="text" id="api-label-input" placeholder="e.g. My OpenRouter" autocomplete="off"
+                                style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Provider Type</label>
+                            <select id="api-provider-select"
+                                style="width: 100%; padding: 8px; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; outline: none; transition: border-color 0.2s;">
+                                <option value="openrouter">OpenRouter</option>
+                                <option value="google">Google Cloud (Gemini)</option>
+                                <option value="groq">Groq</option>
+                                <option value="custom">Custom (OpenAI Compatible)</option>
+                            </select>
+                        </div>
+
+                        <div id="api-base-url-container" class="input-group">
+                            <label>Base URL <span style="font-size: 0.8em; color: var(--text-muted);">(Leave empty for
+                                    default)</span></label>
+                            <input type="text" id="api-base-url-input" placeholder="e.g. https://openrouter.ai/api/v1"
+                                autocomplete="off"
+                                style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
+                        </div>
+
+                        <div class="input-group">
+                            <label>API Key</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="password" id="api-key-input" placeholder="Enter API Key" autocomplete="off"
+                                    style="flex: 1; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
+                                <button id="copy-key-btn" class="icon-btn" title="Copy key"
+                                    style="padding: 0 10px;">⧉</button>
+                            </div>
+                        </div>
+
+                        <div id="api-custom-models-container" class="input-group"
+                            style="border: 1px solid var(--border-light); padding: 10px; border-radius: 4px; background: var(--bg-surface);">
+                            <label style="display: block; margin-bottom: 8px;">Enabled Models</label>
+
+                            <div id="provider-models-tags"
+                                style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; max-height: 100px; overflow-y: auto;">
+                                <!-- Model tags render here -->
+                            </div>
+
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="add-model-input"
+                                    placeholder="Add model ID (e.g. anthropic/claude-3)" autocomplete="off"
+                                    style="flex: 1; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 6px; border-radius: 4px; outline: none; font-size: 0.9rem;">
+                                <button type="button" id="add-model-btn" class="btn btn-secondary"
+                                    style="padding: 4px 12px;">Add</button>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button id="api-key-submit" class="btn btn-primary" style="flex: 1;">Save
+                                Connection</button>
+                            <button id="api-key-delete" class="btn btn-secondary danger hidden"
+                                style="flex: 1;">Delete</button>
+                            <button id="api-key-set-active" class="btn btn-secondary hidden" style="flex: 1;"
+                                title="Set as default connection">Set Active</button>
+                        </div>
+
+                        <div id="api-key-error" class="modal-error hidden" style="margin-top: 10px;"></div>
+                        <div id="api-key-log" class="api-key-log hidden" style="margin-top: 10px;"></div>
+
+                    </div>
                 </div>
             </div>
-            <!-- Stored Keys List -->
-            <div id="stored-keys-section" class="stored-keys-section hidden">
-                <label>Saved Keys <span class="hint">(click to switch active)</span></label>
-                <div id="stored-keys-list" class="stored-keys-list"></div>
-            </div>
-            <!-- Add New Key -->
-            <label class="add-key-label" style="margin-bottom: 8px; display: block;">Add Connection</label>
-            <div class="input-group" style="margin-bottom: 8px;">
-                <select id="api-provider-select"
-                    style="width: 100%; padding: 8px; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); border-radius: 4px; outline: none; transition: border-color 0.2s;">
-                    <option value="google">Google Cloud (Gemini)</option>
-                    <option value="groq">Groq</option>
-                    <option value="openrouter">OpenRouter</option>
-                    <option value="custom">Custom (OpenAI Compatible)</option>
-                </select>
-            </div>
 
-            <div id="api-base-url-container" class="hidden" style="margin-bottom: 8px;">
-                <input type="text" id="api-base-url-input" placeholder="Base URL (e.g. https://api.openai.com/v1)"
-                    autocomplete="off"
-                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
-            </div>
-
-            <div class="input-group" style="margin-bottom: 8px;">
-                <input type="password" id="api-key-input" placeholder="API Key (AIza..., gsk_..., or sk-or-...)"
-                    autocomplete="off"
-                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 8px; border-radius: 4px; outline: none;">
-            </div>
-
-            <div id="api-custom-models-container" class="hidden"
-                style="margin-bottom: 12px; border: 1px solid var(--border-light); padding: 8px; border-radius: 4px; background: var(--bg-surface);">
-                <label style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Custom
-                    Models (comma separated)</label>
-                <input type="text" id="api-custom-models-input"
-                    placeholder="e.g. llama-3.3-70b-versatile, openai/gpt-4o" autocomplete="off"
-                    style="width: 100%; box-sizing: border-box; background: var(--bg-app); border: 1px solid var(--border-light); color: var(--text-main); padding: 6px; border-radius: 4px; outline: none; font-size: 0.9rem;">
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Manually specify models to
-                    use.</div>
-            </div>
-
-            <div style="display: flex; justify-content: flex-end;">
-                <button id="api-key-submit" class="btn btn-primary" style="width: 100%;">Save Connection</button>
-            </div>
-
-            <div id="stored-keys-section" class="hidden"
-                style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-light);">
-                <label
-                    style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 600;">Saved
-                    Connections</label>
-                <div id="stored-keys-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
-            </div>
-
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-light);">
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--border-light);">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                     <input type="checkbox" id="web-automation-toggle" style="width: 16px; height: 16px;">
                     <span style="font-weight: 500;">Use Web Automation Mode (Playwright)</span>
@@ -115,14 +148,15 @@
                         style="width: 24px; height: 24px; border-radius: 4px; object-fit: cover;">
                     <span class="logo-text">Novellica</span>
                 </div>
-                <button id="sidebar-toggle" class="icon-btn col-toggle" title="Toggle sidebar">«</button>
+                <button id="sidebar-toggle" class="icon-btn col-toggle" title="Toggle sidebar"
+                    style="display:none;">«</button>
             </div>
 
             <div class="sidebar-section">
                 <div class="section-header">
                     <span>Project Directory</span>
                     <div class="section-header-actions">
-                        <button id="select-dir-btn" class="icon-btn small" title="Select Project Directory">📂</button>
+                        <button id="select-dir-btn" class="icon-btn small" title="Select Project Directory">🖿</button>
                         <button id="new-project-btn" class="icon-btn small" title="New project">+</button>
                     </div>
                 </div>
@@ -144,9 +178,9 @@
                     </div>
                     <div class="section-header-actions">
                         <button id="toggle-chat-json-btn" class="icon-btn small"
-                            title="Toggle hidden chat files">👁️‍🗨️</button>
+                            title="Toggle hidden chat files">👁︎</button>
                         <button id="refresh-ws-btn" class="icon-btn small" title="Refresh Workspace">↺</button>
-                        <button id="new-ws-folder-btn" class="icon-btn small" title="New Folder">📁</button>
+                        <button id="new-ws-folder-btn" class="icon-btn small" title="New Folder">🖿</button>
                         <button id="new-ws-file-btn" class="icon-btn small" title="New File">+</button>
                     </div>
                 </div>
@@ -155,7 +189,7 @@
                     <div class="workspace-pane" id="drafts-pane" style="padding: 0;">
                         <div class="pane-header" style="padding-left: 8px; display: flex; align-items: center;">
                             <button class="icon-btn pane-toggle" id="drafts-pane-toggle" title="Collapse Drafts"
-                                style="font-size: 0.85rem; padding: 2px 2px; line-height: 1; margin-right: 4px;">🖋️</button>
+                                style="font-size: 0.85rem; padding: 2px 2px; line-height: 1; margin-right: 4px;">✎</button>
                             <span class="pane-title">Drafts</span>
                         </div>
                         <div id="workspace-drafts" class="tree-list workspace-tree"></div>
@@ -182,9 +216,9 @@
                     <button class="section-resizer-reset" id="search-reset" title="Reset height">↺</button>
                 </div>
 
-                <div id="search-content" class="search-content-elegant" style="padding-top: 15px;">
+                <div id="search-content" class="search-content-elegant" style="padding-top: 0px;">
                     <div class="search-input-wrapper">
-                        <span class="search-icon-inline">🔍</span>
+                        <span class="search-icon-inline">🔍︎</span>
                         <input id="global-search-input" type="text" placeholder="Search global knowledge..."
                             autocomplete="off">
                         <button id="global-search-clear" class="search-clear-btn hidden" title="Clear Search">✕</button>
@@ -236,10 +270,10 @@
                             style="display:none; flex-direction:column; gap:4px; padding:6px 8px; border-top:1px solid var(--border-light); flex-shrink:0;">
                             <div style="display:flex; gap:6px;">
                                 <button id="notion-multi-pull-btn" class="btn btn-secondary"
-                                    style="flex:1; font-size:0.75rem;">⬇️
+                                    style="flex:1; font-size:0.75rem;">↓
                                     Pull Selected</button>
                                 <button id="notion-multi-push-btn" class="btn btn-secondary"
-                                    style="flex:1; font-size:0.75rem;">⬆️
+                                    style="flex:1; font-size:0.75rem;">↑
                                     Push Selected</button>
                             </div>
                             <div id="notion-push-hint"
@@ -292,20 +326,21 @@
 
             <div class="sidebar-footer">
                 <!-- Notion Row -->
-                <div style="display: flex; align-items: center; gap: 2px; width: 100%; padding: 2px 0;">
-                    <button id="notion-config-btn" class="sidebar-action" style="flex: 1;" title="Notion Settings">
+                <div style="display: flex; align-items: center; gap: 2px; width: 100%; padding: 0;">
+                    <button id="notion-config-btn" class="sidebar-action" style="flex: 1; padding: 4px 6px;"
+                        title="Notion Settings">
                         <span class="action-icon"><img src="/Notion.png" alt="Notion"
-                                style="width:18px; height:18px; vertical-align:middle; border-radius:3px;"></span>
-                        <span>Notion</span>
+                                style="width:16px; height:16px; vertical-align:middle; border-radius:3px;"></span>
+                        <span style="font-size: 0.85rem;">Notion</span>
                     </button>
                     <button id="notion-pull-btn" class="icon-btn" title="Pull from Notion"
-                        style="padding: 6px 8px; font-size: 1rem;">⬇️</button>
+                        style="padding: 0px 0px; font-size: 0.9rem;">↓</button>
                     <button id="notion-push-btn" class="icon-btn" title="Push to Notion"
-                        style="padding: 6px 8px; font-size: 1rem;">⬆️</button>
+                        style="padding: 0px 0px; font-size: 0.9rem;">↑</button>
                     <button id="notion-tree-expand-btn" class="icon-btn" title="Browse Notion Pages (toggle)"
-                        style="padding: 6px 8px; font-size: 1rem;">🗂️</button>
+                        style="padding: 0px 0px; font-size: 0.9rem;">🖿</button>
                     <button id="notion-log-toggle-btn" class="icon-btn" title="Toggle Sync Logs"
-                        style="padding: 6px 8px; font-size: 1rem;">💻</button>
+                        style="padding: 0px 0px; font-size: 0.9rem;">>_</button>
                 </div>
 
                 <!-- Dev Options (above compact bottom bar) -->
@@ -314,12 +349,12 @@
                         style="position: absolute; bottom: 100%; left: 0; width: 100%; background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); margin-bottom: 4px; padding: 4px; display: flex; flex-direction: column; gap: 2px; z-index: 100;">
                         <button id="backup-code-btn" class="sidebar-action" title="Backup Code"
                             style="padding: 6px 10px; font-size: 0.8rem;">
-                            <span class="action-icon" style="font-size: 1rem;">💾</span>
+                            <span class="action-icon" style="font-size: 1rem;">🖪</span>
                             <span>Backup Code</span>
                         </button>
                         <button id="backup-browser-btn" class="sidebar-action" title="Backup Browser"
                             style="padding: 6px 10px; font-size: 0.8rem;">
-                            <span class="action-icon" style="font-size: 1rem;">📂</span>
+                            <span class="action-icon" style="font-size: 1rem;">🖿</span>
                             <span>Backup Browser</span>
                         </button>
                     </div>
@@ -327,21 +362,25 @@
 
                 <!-- Compact horizontal icon-only bottom bar -->
                 <div
-                    style="display: flex; align-items: center; justify-content: space-around; width: 100%; border-top: 1px solid var(--border-light); padding-top: 4px; margin-top: 2px;">
+                    style="display: flex; align-items: center; justify-content: space-around; width: 100%; border-top: 1px solid var(--border-light); padding-top: 2px; margin-top: 2px;">
                     <button id="settings-btn" class="icon-btn" title="Settings"
-                        style="font-size:1.1rem; padding:6px 10px;">⚙️</button>
+                        style="font-size:1rem; padding:4px 8px;">⚙︎</button>
                     <button id="change-key-btn" class="icon-btn" title="Change API Key"
-                        style="font-size:1.1rem; padding:6px 10px;">🔑</button>
+                        style="font-size:1rem; padding:4px 8px;">🗝</button>
                     <button id="reset-layout-btn" class="icon-btn" title="Reset Layout"
-                        style="font-size:1.1rem; padding:6px 10px;">↺</button>
+                        style="font-size:1rem; padding:4px 8px;">🗘</button>
                     <button id="dev-options-btn" class="icon-btn" title="Developer Options"
-                        style="font-size:1.1rem; padding:6px 10px;">🛠️</button>
+                        style="font-size:1rem; padding:4px 8px;">⚒︎</button>
                 </div>
             </div>
         </aside>
 
         <!-- Resizer 1 (Sidebar / Draft) -->
         <div class="resizer" id="resizer-1" data-left="--sidebar-width" data-right="--editor-width">
+            <button class="resizer-collapse" data-toggle-btn="sidebar-toggle" title="Toggle Sidebar"
+                style="top: calc(50% - 38px);">«</button>
+            <button class="resizer-collapse" data-toggle-btn="editor-toggle" title="Toggle Editor"
+                style="top: calc(50% - 14px);">»</button>
             <button class="resizer-reset" data-left-default="16%" data-right-default="32%"
                 title="Reset columns">↺</button>
         </div>
@@ -354,14 +393,15 @@
                         spellcheck="false" title="Click to rename" />
                 </div>
                 <div class="panel-actions">
-                    <button id="generate-draft-btn" class="icon-btn" title="Generate Audio (Model call)">🎙️</button>
-                    <button id="read-draft-btn" class="icon-btn" title="Play or Mic (Play existing audio)">🔊</button>
-                    <button id="copy-draft-btn" class="icon-btn" title="Copy draft">📋</button>
+                    <button id="generate-draft-btn" class="icon-btn" title="Generate Audio (Model call)">🎤︎</button>
+                    <button id="read-draft-btn" class="icon-btn" title="Play or Mic (Play existing audio)">🔉︎</button>
+                    <button id="copy-draft-btn" class="icon-btn" title="Copy draft">⧉</button>
                     <button id="send-to-refine-btn" class="btn btn-accent" title="Send to refinement">
                         Refine ⟶
                     </button>
                     <button id="editor-more-btn" class="icon-btn more-actions-btn" title="More actions">⋮</button>
-                    <button id="editor-toggle" class="icon-btn col-toggle" title="Toggle editor">«</button>
+                    <button id="editor-toggle" class="icon-btn col-toggle" title="Toggle editor"
+                        style="display:none;">«</button>
                 </div>
             </div>
             <!-- Formatting toolbar -->
@@ -391,6 +431,8 @@
 
         <!-- Resizer 2 (Draft / Refine) -->
         <div class="resizer" id="resizer-2" data-left="--editor-width" data-right="--refine-width">
+            <button class="resizer-collapse" data-collapse-target="refinement-panel" data-toggle-btn="refine-toggle"
+                title="Toggle Refinement">»</button>
             <button class="resizer-reset" data-left-default="32%" data-right-default="32%"
                 title="Reset columns">↺</button>
         </div>
@@ -404,16 +446,17 @@
                 </div>
                 <div class="panel-actions">
                     <button id="generate-refined-btn" class="icon-btn hidden"
-                        title="Generate Audio (Model call)">🎙️</button>
+                        title="Generate Audio (Model call)">🎤︎</button>
                     <button id="read-refined-btn" class="icon-btn hidden"
-                        title="Play or Mic (Play existing audio)">🔊</button>
+                        title="Play or Mic (Play existing audio)">🔉︎</button>
                     <button id="save-refined-btn" class="icon-btn hidden"
-                        title="Save to Story Refined folder">💾</button>
-                    <button id="copy-refined-btn" class="icon-btn" title="Copy refined text">📋</button>
+                        title="Save to Story Refined folder">🖪</button>
+                    <button id="copy-refined-btn" class="icon-btn" title="Copy refined text">⧉</button>
                     <button id="apply-to-draft-btn" class="icon-btn" title="Apply to draft">⟵</button>
                     <button id="clear-refinement-btn" class="icon-btn" title="Clear">✕</button>
                     <button id="refine-more-btn" class="icon-btn more-actions-btn" title="More actions">⋮</button>
-                    <button id="refine-toggle" class="icon-btn col-toggle" title="Toggle refinement">«</button>
+                    <button id="refine-toggle" class="icon-btn col-toggle" title="Toggle refinement"
+                        style="display:none;"></button>
                 </div>
             </div>
             <!-- Formatting toolbar -->
@@ -443,6 +486,8 @@
 
         <!-- Resizer 3 (Refine / Prompt Studio) -->
         <div class="resizer" id="resizer-3" data-left="--refine-width" data-right="--col4-width">
+            <button class="resizer-collapse" data-collapse-target="col4-panel" data-toggle-btn="col4-toggle"
+                title="Toggle Chat Panel">»</button>
             <button class="resizer-reset" data-left-default="32%" data-right-default="20%"
                 title="Reset columns">↺</button>
         </div>
@@ -451,12 +496,12 @@
         <aside id="col4-panel" class="panel col4-panel">
             <!-- Tab Bar -->
             <div class="tab-bar">
-                <button class="tab-btn active" data-tab="chat">💬 Chat</button>
-                <button class="tab-btn" data-tab="diff-viewer">⇔ Diff</button>
-                <button class="tab-btn" data-tab="prompt-studio">📝 Prompts</button>
-                <button class="tab-btn" data-tab="logs">📊 Logs</button>
-                <div style="flex:1"></div>
-                <button id="col4-toggle" class="icon-btn col-toggle" title="Toggle panel">»</button>
+                <button class="tab-btn active" data-tab="chat">🗨 Chat</button>
+                <button class="tab-btn" data-tab="diff-viewer">⇋ Diff</button>
+                <button class="tab-btn" data-tab="prompt-studio">✧ Prompts</button>
+                <button class="tab-btn" data-tab="logs">☶ Logs</button>
+                <button id="col4-toggle" class="icon-btn col-toggle" title="Toggle panel"
+                    style="display:none;">»</button>
             </div>
 
             <!-- Tab: Chat -->
@@ -514,7 +559,7 @@
                                     you sure? Delete</button>
                             </div>
                         </div>
-                        <button id="ps-backup-btn" class="icon-btn" title="View backups">🕐</button>
+                        <button id="ps-backup-btn" class="icon-btn" title="View backups">⏱</button>
                     </div>
                     <div id="ps-status" class="ps-status hidden">Saved</div>
                     <div class="prompt-studio-fields">
@@ -561,7 +606,7 @@
                             <button class="diff-action-btn" id="diff-redo-btn" title="Redo (Ctrl+Y)" disabled>↪</button>
                             <span class="diff-decided-count" id="diff-decided-count"></span>
                             <span style="opacity:0.15;margin:0 4px">│</span>
-                            <button class="diff-toggle-btn" id="diff-reading-toggle" title="Reading Mode">📖
+                            <button class="diff-toggle-btn" id="diff-reading-toggle" title="Reading Mode">📚︎
                                 Read</button>
                         </div>
                     </div>
@@ -846,7 +891,7 @@
 
                         <!-- TTS Settings -->
                         <hr style="border: none; border-top: 1px solid var(--border-light); margin: 20px 0;">
-                        <h4 style="margin: 0 0 12px 0; color: var(--accent);">🔊 Text-to-Speech (Kokoro v1.0)</h4>
+                        <h4 style="margin: 0 0 12px 0; color: var(--accent);">🔉︎ Text-to-Speech (Kokoro v1.0)</h4>
                         <div class="settings-group">
                             <label>TTS Voice</label>
                             <select id="settings-tts-voice" style="width:100%">

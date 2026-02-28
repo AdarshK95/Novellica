@@ -334,7 +334,7 @@ const Chat = (() => {
 
         const copyBtn = document.createElement('button');
         copyBtn.className = 'icon-btn small msg-copy-btn';
-        copyBtn.textContent = '📑';
+        copyBtn.textContent = '⧉';
         copyBtn.title = 'Copy';
         copyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
